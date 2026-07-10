@@ -69,9 +69,9 @@ class CommunityItemAdmin(admin.ModelAdmin):
 
 @admin.register(Resource)
 class ResourceAdmin(admin.ModelAdmin):
-    list_display = ('title', 'category', 'display_order', 'is_published')
+    list_display = ('title', 'category', 'best_for', 'display_order', 'is_published')
     list_filter = ('category', 'is_published')
-    search_fields = ('title', 'description', 'url')
+    search_fields = ('title', 'description', 'url', 'best_for', 'tags')
     ordering = ('display_order',)
 
 

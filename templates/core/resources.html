@@ -7,19 +7,41 @@
 <section class="page-hero">
     <p class="eyebrow">Recommended resources</p>
     <h1>Tools and courses worth your time.</h1>
-    <p class="page-hero__lede">A short list of the books, courses, and gear that actually helped. Some links are affiliate links, which means this site may earn a small commission at no extra cost to you.</p>
+    <p class="page-hero__lede">A short list of the books, courses, and gear that actually helped. As an Amazon Associate I earn from qualifying purchases. This does not change the price you pay.</p>
 </section>
 
-<section class="section-grid">
+<section class="resource-grid">
     {% for resource in resources %}
-    <article class="info-card">
-        <span class="tag">{{ resource.get_category_display }}</span>
+    <article class="info-card resource-card">
+        {% if resource.image_url %}
+        <img class="resource-card__image" src="{{ resource.image_url }}" alt="{{ resource.title }}" loading="lazy">
+        {% endif %}
+        <p class="info-card__eyebrow">{{ resource.get_category_display }}</p>
         <h2>{{ resource.title }}</h2>
+        {% if resource.best_for %}
+        <p class="resource-card__badge">Best for: {{ resource.best_for }}</p>
+        {% endif %}
         <p>{{ resource.description }}</p>
-        <a class="button button--primary button--small" href="{{ resource.url }}" target="_blank" rel="nofollow sponsored noopener">{{ resource.cta_label }}</a>
+        {% if resource.tags %}
+        <div class="tag-row">
+            {% for tag in resource.tags %}
+            <span class="tag">{{ tag }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+        <div class="resource-card__actions">
+            {% if resource.details_url %}
+            <a class="button button--ghost button--small" href="{{ resource.details_url }}">Details</a>
+            {% endif %}
+            <a class="button button--primary button--small" href="{{ resource.url }}" target="_blank" rel="nofollow sponsored noopener">{{ resource.cta_label }}</a>
+        </div>
     </article>
     {% empty %}
     <p>Recommendations are coming soon.</p>
     {% endfor %}
 </section>
+
+{% if resources %}
+<p class="resource-disclosure">As an Amazon Associate I earn from qualifying purchases. Product prices and availability can change, so always confirm details on the retailer's site before purchasing.</p>
+{% endif %}
 {% endblock %}

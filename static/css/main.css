@@ -446,6 +446,52 @@ main,
     font-size: 0.9rem;
 }
 
+.resource-grid {
+    display: grid;
+    gap: 1.25rem;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    margin: 1.5rem 0;
+}
+
+.resource-card {
+    display: grid;
+    align-content: start;
+    gap: 0.5rem;
+}
+
+.resource-card__image {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow);
+    margin-bottom: 0.5rem;
+}
+
+.resource-card__badge {
+    margin: 0;
+    font-style: italic;
+    color: var(--ink-soft);
+    font-size: 0.92rem;
+}
+
+.resource-card__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    justify-content: flex-end;
+    margin-top: 0.5rem;
+}
+
+.resource-disclosure {
+    margin-top: 1rem;
+    padding: 1rem 1.1rem;
+    border-radius: var(--radius-md);
+    background: rgba(16, 37, 66, 0.05);
+    color: var(--ink-soft);
+    font-size: 0.9rem;
+}
+
 .lesson-panel {
     align-self: start;
 }

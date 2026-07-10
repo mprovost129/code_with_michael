@@ -118,6 +118,10 @@ class Resource(OrderedContentModel):
     url = models.URLField()
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default=CATEGORY_OTHER)
     cta_label = models.CharField(max_length=50, default='View')
+    image_url = models.URLField(blank=True)
+    best_for = models.CharField(max_length=100, blank=True, help_text='Shown as "Best for: <value>", e.g. "Beginner Programmers".')
+    tags = models.JSONField(default=list, blank=True)
+    details_url = models.URLField(blank=True, help_text='Optional link to a longer write-up. Leave blank to hide the Details button.')
     is_published = models.BooleanField(default=True)
 
     def __str__(self):
