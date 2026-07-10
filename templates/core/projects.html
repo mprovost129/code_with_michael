@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+
+{% block title %}Projects{% endblock %}
+{% block meta_description %}Mini beginner Python projects that combine multiple lessons into useful builds.{% endblock %}
+
+{% block content %}
+<section class="page-hero">
+    <p class="eyebrow">Projects</p>
+    <h1>Mini builds that show how lessons connect.</h1>
+</section>
+
+<section class="section-grid">
+    {% for project in projects %}
+    <article class="info-card">
+        <h2>{{ project.title }}</h2>
+        <p>{{ project.description }}</p>
+    </article>
+    {% endfor %}
+</section>
+{% endblock %}

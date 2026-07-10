@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+
+{% block title %}Lessons{% endblock %}
+{% block meta_description %}Short beginner Python lessons with clear goals, practice prompts, and quizzes.{% endblock %}
+
+{% block content %}
+<section class="page-hero">
+    <p class="eyebrow">Lessons</p>
+    <h1>Short lessons with one idea at a time.</h1>
+    <p class="page-hero__lede">The current MVP focuses on a structured beginner path. We start with one polished interactive lesson and map the next modules so content can grow with confidence.</p>
+</section>
+
+<section class="module-grid">
+    {% for module in modules %}
+    <article class="info-card">
+        <p class="info-card__eyebrow">Module {{ module.number }} | {{ module.duration }}</p>
+        <h2>{{ module.title }}</h2>
+        <p>{{ module.goal }}</p>
+        <div class="tag-row">
+            {% for topic in module.topics %}
+            <span class="tag">{{ topic }}</span>
+            {% endfor %}
+        </div>
+        {% if featured_lesson and module.slug == featured_module_slug %}
+        <a class="button button--ghost" href="{% url 'core:lesson_detail' featured_lesson.slug %}">Open Prototype Lesson</a>
+        {% endif %}
+    </article>
+    {% endfor %}
+</section>
+
+<section class="section-heading">
+    <p class="eyebrow">Lesson library</p>
+    <h2>Open a lesson and start practicing.</h2>
+</section>
+
+<section class="section-grid">
+    {% for card in lesson_cards %}
+    {% with lesson=card.lesson practice_challenge=card.practice_challenge %}
+    <article class="info-card">
+        <p class="info-card__eyebrow">{{ lesson.duration }}</p>
+        <h2>{{ lesson.title }}</h2>
+        <p>{{ lesson.summary }}</p>
+        {% if practice_challenge %}
+        <p class="hint-text">Practice next: {{ practice_challenge.title }}</p>
+        {% endif %}
+        <a class="button button--ghost" href="{% url 'core:lesson_detail' lesson.slug %}">Open Lesson</a>
+        {% if practice_challenge %}
+        <a class="button button--primary button--small" href="{% url 'core:challenge_detail' practice_challenge.slug %}">Open Paired Challenge</a>
+        {% endif %}
+    </article>
+    {% endwith %}
+    {% endfor %}
+</section>
+{% endblock %}

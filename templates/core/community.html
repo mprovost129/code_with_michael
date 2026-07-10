@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block title %}Community{% endblock %}
+{% block meta_description %}Weekly challenge prompts and beginner community touchpoints for Code with Michael.{% endblock %}
+
+{% block content %}
+<section class="page-hero">
+    <p class="eyebrow">Community</p>
+    <h1>Connect lessons to the audience you already have.</h1>
+    <p class="page-hero__lede">The website does not replace your social presence. It gives it a home base with clearer next steps and reusable practice.</p>
+</section>
+
+<section class="section-grid">
+    {% for item in community_items %}
+    <article class="info-card">
+        <h2>{{ item.title }}</h2>
+        <p>{{ item.description }}</p>
+    </article>
+    {% endfor %}
+</section>
+{% endblock %}

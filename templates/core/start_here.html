@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+
+{% block title %}Start Here{% endblock %}
+{% block meta_description %}A guided first step for absolute beginners who want to try Python without setup.{% endblock %}
+
+{% block content %}
+<section class="page-hero">
+    <p class="eyebrow">Start here</p>
+    <h1>Begin with one calm, guided win.</h1>
+    <p class="page-hero__lede">This page is for people who are curious about Python but do not want to fight installation steps, jargon, or giant courses on day one.</p>
+</section>
+
+<section class="two-column">
+    <article class="panel">
+        <h2>What happens first</h2>
+        <ul class="stack-list stack-list--compact">
+            {% for step in steps %}
+            <li><span>{{ step }}</span></li>
+            {% endfor %}
+        </ul>
+    </article>
+    <article class="panel panel--accent">
+        {% if first_module %}
+        <p class="eyebrow">Module {{ first_module.number }}</p>
+        <h2>{{ first_module.title }}</h2>
+        <p>{{ first_module.goal }}</p>
+        {% else %}
+        <p class="eyebrow">First module</p>
+        <h2>Content setup is ready.</h2>
+        <p>Add the first module in Django admin or run the bootstrap command to load the starter path.</p>
+        {% endif %}
+        {% if featured_lesson %}
+        <a class="button button--primary" href="{% url 'core:lesson_detail' featured_lesson.slug %}">Open First Lesson</a>
+        {% endif %}
+    </article>
+</section>
+{% endblock %}

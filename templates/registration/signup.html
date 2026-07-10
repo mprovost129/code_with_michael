@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block title %}Create Account{% endblock %}
+
+{% block meta_description %}Create a free Code with Michael account to save your place and keep your future community username.{% endblock %}
+
+{% block content %}
+<section class="page-hero">
+    <p class="eyebrow">Create account</p>
+    <h1>Save your progress and claim your username.</h1>
+    <p class="page-hero__lede">Your email stays your primary account identity, and your username is reserved for future Q&amp;A, discussion, and community features.</p>
+</section>
+
+<section class="two-column">
+    <article class="panel">
+        <h2>Why sign up now?</h2>
+        <ul class="stack-list stack-list--compact">
+            <li>
+                <strong>Keep your place</strong>
+                <span>As progress tracking grows, your account will anchor it.</span>
+            </li>
+            <li>
+                <strong>Choose your username early</strong>
+                <span>That name can carry into future chat, comments, and learner shoutouts.</span>
+            </li>
+            <li>
+                <strong>Sign in your way</strong>
+                <span>Use either your email or your username when you come back.</span>
+            </li>
+        </ul>
+    </article>
+
+    <article class="panel">
+        <h2>Get started</h2>
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit">Create Account</button>
+        </form>
+        <p>Already have an account? <a href="{% url 'login' %}">Log in here</a>.</p>
+    </article>
+</section>
+{% endblock %}

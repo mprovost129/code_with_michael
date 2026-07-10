@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+
+{% block title %}Tips{% endblock %}
+{% block meta_description %}Common beginner Python fixes and plain-English tips from Code with Michael.{% endblock %}
+
+{% block content %}
+<section class="page-hero">
+    <p class="eyebrow">Tips and tricks</p>
+    <h1>Quick wins pulled from the social content loop.</h1>
+</section>
+
+<section class="section-grid">
+    {% for tip in tips %}
+    <article class="info-card">
+        <h2>{{ tip.title }}</h2>
+        <p>{{ tip.description }}</p>
+    </article>
+    {% endfor %}
+</section>
+{% endblock %}

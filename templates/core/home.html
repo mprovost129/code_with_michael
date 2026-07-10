@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+
+{% block title %}Learn Python With Small Wins{% endblock %}
+{% block meta_description %}Beginner-friendly Python lessons, practice challenges, and a runnable first lesson without setup.{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div class="hero__copy">
+        <p class="eyebrow">No setup. No overwhelm. Just real Python practice.</p>
+        <h1>Learn Python by actually writing Python.</h1>
+        <p class="hero__lede">This site is built for beginners who want a calm place to learn, run code immediately, and build confidence one lesson at a time.</p>
+        <div class="hero__actions">
+            <a class="button button--primary" href="{% url 'core:start_here' %}">Start Coding in 60 Seconds</a>
+            {% if featured_lesson %}
+            <a class="button button--ghost" href="{% url 'core:lesson_detail' featured_lesson.slug %}">Try the First Lesson</a>
+            {% endif %}
+        </div>
+        <div class="hero__stats">
+            <div><strong>{{ site_stats.followers }}</strong><span>social followers</span></div>
+            <div><strong>{{ site_stats.lesson_count }}</strong><span>starter lessons</span></div>
+            <div><strong>{{ site_stats.challenge_count }}</strong><span>practice prompts</span></div>
+        </div>
+    </div>
+    <div class="hero__card">
+        <p class="hero-card__label">First code box</p>
+        <pre class="hero-card__code">print("Hello from Code with Michael!")
+print("You can do this.")</pre>
+        <div class="hero-card__output">
+            <span>Output</span>
+            <strong>Hello from Code with Michael!<br>You can do this.</strong>
+        </div>
+    </div>
+</section>
+
+<section class="section-grid">
+    {% for feature in features %}
+    <article class="info-card">
+        <h2>{{ feature.title }}</h2>
+        <p>{{ feature.description }}</p>
+    </article>
+    {% endfor %}
+</section>
+
+<section class="roadmap">
+    <div class="section-heading">
+        <p class="eyebrow">Beginner roadmap</p>
+        <h2>Basics to confidence, without wandering.</h2>
+    </div>
+    <div class="roadmap__steps">
+        {% for step in roadmap_steps %}
+        <article class="roadmap-step">
+            <span class="roadmap-step__count">0{{ forloop.counter }}</span>
+            <h3>{{ step.label }}</h3>
+            <p>{{ step.description }}</p>
+        </article>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="two-column">
+    <article class="panel">
+        <div class="section-heading">
+            <p class="eyebrow">Start here path</p>
+            <h2>Your first module is ready.</h2>
+        </div>
+        <ul class="stack-list">
+            {% for module in modules %}
+            <li>
+                <strong>Module {{ module.number }}: {{ module.title }}</strong>
+                <span>{{ module.goal }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+    </article>
+    <article class="panel panel--accent">
+        <p class="eyebrow">Featured challenge</p>
+        {% if featured_challenge %}
+        <h2>{{ featured_challenge.title }}</h2>
+        <p>{{ featured_challenge.prompt }}</p>
+        <p class="hint-text">Hint: {{ featured_challenge.hint }}</p>
+        <a class="button button--primary" href="{% url 'core:challenges' %}">Browse Challenges</a>
+        {% else %}
+        <h2>Challenges are coming next.</h2>
+        <p>The content model is ready, so this space can now be managed from Django admin.</p>
+        {% endif %}
+    </article>
+</section>
+
+<section class="two-column">
+    <article class="panel">
+        <div class="section-heading">
+            <p class="eyebrow">Why learn here</p>
+            <h2>Friendly structure beats information overload.</h2>
+        </div>
+        <p>Each lesson follows the same rhythm: goal, plain-English explanation, working code, one change to try, a common mistake, a mini challenge, and a short quiz.</p>
+    </article>
+    <article class="panel">
+        <div class="section-heading">
+            <p class="eyebrow">Retention loop</p>
+            <h2>Built to bring beginners back.</h2>
+        </div>
+        <ul class="stack-list stack-list--compact">
+            {% for tip in tips %}
+            <li>
+                <strong>{{ tip.title }}</strong>
+                <span>{{ tip.description }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+    </article>
+</section>
+
+<section class="two-column">
+    <article class="panel panel--accent">
+        <p class="eyebrow">Email starter pack</p>
+        <h2>Get the next lesson, challenge, and recap by email.</h2>
+        <p>Social posts are great for discovery, but email is the easiest way to bring learners back to a clear next step. Start building that habit now.</p>
+        <p class="hint-text">Planned rhythm: a weekly beginner lesson, one practice challenge, and a simple recap.</p>
+    </article>
+    <article class="panel" id="email-signup">
+        <div class="section-heading">
+            <p class="eyebrow">Stay in the loop</p>
+            <h2>Join the beginner list</h2>
+        </div>
+        <form method="post" class="email-signup-form">
+            {% csrf_token %}
+            {{ email_subscriber_form.as_p }}
+            <button type="submit">Join Free Email List</button>
+        </form>
+    </article>
+</section>
+{% endblock %}

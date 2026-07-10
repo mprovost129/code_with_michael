@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ challenge.title }}{% endblock %}
+{% block meta_description %}{{ challenge.prompt }}{% endblock %}
+
+{% block content %}
+<section class="page-hero">
+    <p class="eyebrow">Practice challenge</p>
+    <h1>{{ challenge.title }}</h1>
+    <p class="page-hero__lede">{{ challenge.prompt }}</p>
+    {% if challenge_position and total_challenges %}
+    <p>Challenge {{ challenge_position }} of {{ total_challenges }} in the beginner practice track.</p>
+    {% endif %}
+    {% if user.is_authenticated and challenge_progress %}
+    <div class="progress-banner">
+        {% if challenge_progress.is_completed %}
+        <span class="progress-pill progress-pill--complete">Completed</span>
+        {% else %}
+        <span class="progress-pill">In Progress</span>
+        {% endif %}
+        <a class="button button--ghost button--small" href="{% url 'core:my_progress' %}">View My Progress</a>
+    </div>
+    {% elif not user.is_authenticated %}
+    <p><a href="{% url 'signup' %}">Create a free account</a> to save challenge drafts and completion progress.</p>
+    {% endif %}
+</section>
+
+{% if user.is_authenticated and challenge_milestone %}
+<section class="panel {% if challenge_milestone.status == 'completed' %}panel--accent{% endif %}">
+    <p class="eyebrow">Milestone Status</p>
+    <h2>{{ challenge_milestone.celebration }}</h2>
+    {% if challenge_milestone.status == 'completed' %}
+    <p>You finished the paired lesson and this challenge, so this milestone is officially complete.</p>
+    {% elif challenge_milestone.status == 'in_progress' %}
+    <p>This challenge is connected to <strong>{{ challenge_milestone.lesson.title }}</strong>. Finishing both pieces will complete the milestone.</p>
+    {% else %}
+    <p>This practice challenge is waiting for its lesson partner so you can complete the milestone cleanly.</p>
+    {% endif %}
+</section>
+{% endif %}
+
+{% if user.is_authenticated and challenge_completion_stack %}
+<section class="panel">
+    <p class="eyebrow">Completion Stack</p>
+    <h2>{{ challenge_stack_complete_count }} of {{ challenge_completion_stack|length }} steps finished</h2>
+    {% if challenge_next_action %}
+    <p class="hint-text"><strong>Recommended next action:</strong> {{ challenge_next_action }}</p>
+    {% endif %}
+    <ul class="stack-list stack-list--compact">
+        {% for item in challenge_completion_stack %}
+        <li>
+            <strong>{% if item.done %}Complete{% else %}Still to do{% endif %}</strong>
+            <span>{{ item.label }}</span>
+        </li>
+        {% endfor %}
+    </ul>
+</section>
+{% endif %}
+
+<section class="lesson-layout">
+    <article class="panel lesson-panel">
+        <p class="eyebrow">Challenge prompt</p>
+        <h2>Build it, run it, and adjust one small thing at a time.</h2>
+        <p>{{ challenge.prompt }}</p>
+
+        <div class="lesson-callout">
+            <strong>Hint:</strong>
+            <p>{{ challenge.hint|linebreaksbr }}</p>
+        </div>
+
+        {% if challenge.expected_output %}
+        <div class="lesson-callout">
+            <strong>Expected output example:</strong>
+            <pre>{{ challenge.expected_output }}</pre>
+        </div>
+        {% endif %}
+
+        {% if challenge.success_checks %}
+        <div class="lesson-callout">
+            <strong>You are ready to move on when:</strong>
+            <ul class="stack-list stack-list--compact">
+                {% for check in challenge.success_checks %}
+                <li>{{ check }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <div class="lesson-callout lesson-callout--warning">
+            <strong>Practice tip:</strong>
+            <p>Start by getting any output at all, then improve the variable names, wording, or formatting on the next run.</p>
+        </div>
+
+        {% if challenge.reflection_prompt %}
+        <div class="lesson-callout">
+            <strong>Quick reflection:</strong>
+            <p>{{ challenge.reflection_prompt }}</p>
+        </div>
+        {% endif %}
+    </article>
+
+    <form
+        method="post"
+        action="{% url 'core:challenge_progress_update' challenge.id %}"
+        class="panel panel--editor"
+        data-python-runner
+        data-challenge-autosave-form
+        data-autosave-url="{% url 'core:challenge_autosave' challenge.id %}"
+    >
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{% url 'core:challenge_detail' challenge.slug %}">
+        <div class="editor-toolbar">
+            <div>
+                <p class="editor-toolbar__label">Runnable code</p>
+                <h2>Use the editor like a scratchpad and mini lab.</h2>
+            </div>
+            <button class="button button--primary" type="button" data-run-python>Run Code</button>
+        </div>
+
+        <label class="visually-hidden" for="challenge-code">Python code editor</label>
+        <textarea id="challenge-code" class="code-editor" data-python-source name="response_text">{% if saved_response %}{{ saved_response }}{% else %}{{ challenge.starter_code }}{% endif %}</textarea>
+
+        <div class="editor-output">
+            <div class="editor-output__meta">
+                <span>Output</span>
+                <button class="button button--ghost button--small" type="button" data-reset-python>Reset</button>
+            </div>
+            <pre data-python-output>{% if challenge.expected_output %}{{ challenge.expected_output }}{% else %}Run the starter code to see output here.{% endif %}</pre>
+        </div>
+        {% if user.is_authenticated %}
+        <p class="editor-note" data-autosave-status>Autosave is ready. Your draft will save a moment after you stop typing.</p>
+        <div class="button-row">
+            <button class="button button--ghost" type="submit" name="action" value="save">Save Draft</button>
+            <button class="button button--primary" type="submit" name="action" value="complete">Mark Complete</button>
+            {% if challenge_progress %}
+            <button class="button button--ghost button--small" type="submit" name="action" value="reset">Reset</button>
+            {% endif %}
+        </div>
+        {% else %}
+        <p class="editor-note">Nothing is graded automatically here yet. The goal is to practice, compare output, and keep a saved draft you can improve.</p>
+        {% endif %}
+    </form>
+</section>
+
+<section class="panel">
+    <p class="eyebrow">Keep going</p>
+    <h2>Stack practice reps while the ideas are still fresh.</h2>
+    <div class="button-row">
+        <a class="button button--ghost" href="{% url 'core:challenges' %}">Back to Challenge Board</a>
+        {% if previous_challenge %}
+        <a class="button button--ghost" href="{% url 'core:challenge_detail' previous_challenge.slug %}">Previous Challenge</a>
+        {% endif %}
+        {% if next_challenge %}
+        <a class="button button--primary" href="{% url 'core:challenge_detail' next_challenge.slug %}">Next Challenge</a>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

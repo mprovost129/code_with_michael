@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+
+{% block title %}My Progress{% endblock %}
+{% block meta_description %}Track completed beginner Python lessons and continue where you left off.{% endblock %}
+
+{% block content %}
+<section class="page-hero">
+    <p class="eyebrow">My progress</p>
+    <h1>Keep your beginner momentum visible.</h1>
+    <p class="page-hero__lede">This page shows what you have started, what you have finished, and the easiest next lesson to open.</p>
+</section>
+
+<section class="stats-grid">
+    <article class="stat-card">
+        <span class="stat-card__label">Published Lessons</span>
+        <strong>{{ total_lessons }}</strong>
+    </article>
+    <article class="stat-card">
+        <span class="stat-card__label">Completed</span>
+        <strong>{{ completed_lessons }}</strong>
+    </article>
+    <article class="stat-card">
+        <span class="stat-card__label">Still To Go</span>
+        <strong>{{ incomplete_lessons }}</strong>
+    </article>
+    <article class="stat-card">
+        <span class="stat-card__label">Completion Rate</span>
+        <strong>{{ completion_percent }}%</strong>
+    </article>
+    <article class="stat-card">
+        <span class="stat-card__label">Challenges Completed</span>
+        <strong>{{ completed_challenges }}/{{ total_challenges }}</strong>
+    </article>
+</section>
+
+<section class="panel panel--accent">
+    <p class="eyebrow">Latest Win</p>
+    {% if latest_completed_milestone %}
+    <h2>{{ latest_completed_milestone.celebration }}</h2>
+    <p>You finished both the lesson and the matching practice challenge. That is the kind of repetition that makes the basics stick.</p>
+    {% if latest_completed_milestone.practice_challenge %}
+    <p class="hint-text">Completed pair: {{ latest_completed_milestone.lesson.title }} + {{ latest_completed_milestone.practice_challenge.title }}</p>
+    {% endif %}
+    {% elif current_milestone %}
+    <h2>{{ current_milestone.celebration }}</h2>
+    <p>You are in motion. Finishing the lesson and its paired challenge will unlock the next clean milestone.</p>
+    {% else %}
+    <h2>Every current milestone is complete.</h2>
+    <p>You have finished the full beginner path that is published right now.</p>
+    {% endif %}
+</section>
+
+<section class="two-column">
+    <article class="panel panel--accent">
+        <p class="eyebrow">Path Milestone</p>
+        {% if current_milestone %}
+        <h2>Milestone {{ current_milestone.number }}</h2>
+        <p>Pair <strong>{{ current_milestone.lesson.title }}</strong> with its matching practice challenge to lock in this step of the path.</p>
+        <p class="hint-text">Completed milestones: {{ completed_milestones }} of {{ total_lessons }}</p>
+        <div class="button-row">
+            <a class="button button--primary" href="{% url 'core:lesson_detail' current_milestone.lesson.slug %}">Open Lesson</a>
+            {% if current_milestone.practice_challenge %}
+            <a class="button button--ghost" href="{% url 'core:challenge_detail' current_milestone.practice_challenge.slug %}">Open Paired Challenge</a>
+            {% endif %}
+        </div>
+        {% else %}
+        <h2>All current milestones complete.</h2>
+        <p>You have finished every lesson-plus-practice pair in the current beginner path.</p>
+        <p class="hint-text">Completed milestones: {{ completed_milestones }} of {{ total_lessons }}</p>
+        <a class="button button--primary" href="{% url 'core:lessons' %}">Review the Path</a>
+        {% endif %}
+    </article>
+
+    <article class="panel">
+        <div class="section-heading">
+            <p class="eyebrow">Milestone history</p>
+            <h2>Your lesson + challenge path</h2>
+        </div>
+        {% if path_milestones %}
+        <ul class="stack-list stack-list--compact">
+            {% for milestone in path_milestones %}
+            <li>
+                <strong>Milestone {{ milestone.number }} | {{ milestone.lesson.title }}{% if milestone.practice_challenge %} + {{ milestone.practice_challenge.title }}{% endif %}</strong>
+                <span class="milestone-badge milestone-badge--{{ milestone.status }}">{{ milestone.celebration }}</span>
+                <span>
+                    {% if milestone.status == 'completed' %}
+                    Completed lesson and paired challenge
+                    {% elif milestone.status == 'in_progress' %}
+                    Partially complete: finish the lesson or paired challenge
+                    {% else %}
+                    Not started yet
+                    {% endif %}
+                </span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>Your milestones will appear here as soon as lessons are available in the published path.</p>
+        {% endif %}
+    </article>
+</section>
+
+<section class="two-column">
+    <article class="panel panel--accent">
+        <p class="eyebrow">Continue lesson</p>
+        {% if continue_lesson %}
+        <h2>{{ continue_lesson.lesson.title }}</h2>
+        <p>You last viewed this lesson recently. Pick up where you left off and keep the streak alive.</p>
+        <a class="button button--primary" href="{% url 'core:lesson_detail' continue_lesson.lesson.slug %}">Continue Learning</a>
+        {% if continue_lesson_challenge %}
+        <p class="hint-text">Paired practice: {{ continue_lesson_challenge.title }}</p>
+        <a class="button button--ghost button--small" href="{% url 'core:challenge_detail' continue_lesson_challenge.slug %}">Open Linked Challenge</a>
+        {% endif %}
+        {% elif recommended_next_lesson %}
+        <h2>{{ recommended_next_lesson.title }}</h2>
+        <p>You have finished what you started. Open the next unstarted lesson and keep stacking wins.</p>
+        <a class="button button--primary" href="{% url 'core:lesson_detail' recommended_next_lesson.slug %}">Start Next Lesson</a>
+        {% if recommended_next_challenge %}
+        <p class="hint-text">Paired practice: {{ recommended_next_challenge.title }}</p>
+        <a class="button button--ghost button--small" href="{% url 'core:challenge_detail' recommended_next_challenge.slug %}">See the Matching Challenge</a>
+        {% endif %}
+        {% else %}
+        <h2>You are caught up.</h2>
+        <p>Once you start or reset more lessons, your next recommended lesson will appear here.</p>
+        <a class="button button--primary" href="{% url 'core:lessons' %}">Browse Lessons</a>
+        {% endif %}
+    </article>
+
+    <article class="panel">
+        <div class="section-heading">
+            <p class="eyebrow">Lesson history</p>
+            <h2>Your tracked lessons</h2>
+        </div>
+        {% if progress_items %}
+        <ul class="stack-list stack-list--compact">
+            {% for item in progress_items %}
+            <li>
+                <strong>{{ item.lesson.title }}{% if item.is_completed %} | Completed{% else %} | In Progress{% endif %}</strong>
+                <span>Module {{ item.lesson.module.number }} | Last viewed {{ item.last_viewed_at|date:"M j, Y" }} | Quiz best {{ item.best_quiz_score }}%{% if item.lesson.practice_challenge_slug %} | Paired challenge linked{% endif %}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>You have not started any tracked lessons yet. Open a lesson while signed in and your progress will begin automatically.</p>
+        {% endif %}
+    </article>
+</section>
+
+<section class="two-column">
+    <article class="panel panel--accent">
+        <p class="eyebrow">Continue challenge</p>
+        {% if continue_challenge %}
+        <h2>{{ continue_challenge.challenge.title }}</h2>
+        <p>Your saved notes are waiting. Open the challenge board and keep shaping your answer.</p>
+        <a class="button button--primary" href="{% url 'core:challenges' %}">Continue Challenge</a>
+        {% else %}
+        <h2>Challenge board is clear.</h2>
+        <p>Once you save notes on a challenge, it will show up here as your next practice task.</p>
+        <a class="button button--primary" href="{% url 'core:challenges' %}">Browse Challenges</a>
+        {% endif %}
+    </article>
+
+    <article class="panel">
+        <div class="section-heading">
+            <p class="eyebrow">Challenge history</p>
+            <h2>Your saved practice</h2>
+        </div>
+        {% if challenge_progress_items %}
+        <ul class="stack-list stack-list--compact">
+            {% for item in challenge_progress_items %}
+            <li>
+                <strong>{{ item.challenge.title }}{% if item.is_completed %} | Completed{% else %} | In Progress{% endif %}</strong>
+                <span>Last updated {{ item.last_updated_at|date:"M j, Y" }}{% if item.response_text %} | Notes saved{% endif %}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>You have not saved any challenge work yet. Use the challenge board to keep drafts, ideas, or finished answers in one place.</p>
+        {% endif %}
+    </article>
+</section>
+{% endblock %}

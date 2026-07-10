@@ -1,0 +1,11 @@
+    <footer class="site-footer">
+        <div>
+            <p class="site-footer__title">Code with Michael</p>
+            <p class="site-footer__copy">Learn Python by writing Python, with lessons, quizzes, challenges and small wins that stack up.</p>
+        </div>
+        <div class="site-footer__meta">
+            <span>{{ site_stats.followers }} followers already cheering you on.</span>
+            <a href="{% url 'core:home' %}#email-signup">Join the email list</a>
+            <a href="{% url 'core:start_here' %}">Start here</a>
+        </div>
+    </footer>

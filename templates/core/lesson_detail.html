@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ lesson.title }}{% endblock %}
+{% block meta_description %}{{ lesson.summary }}{% endblock %}
+
+{% block content %}
+<section class="page-hero" data-track-view="lesson_view" data-lesson-slug="{{ lesson.slug }}">
+    <p class="eyebrow">Lesson prototype</p>
+    <h1>{{ lesson.title }}</h1>
+    <p class="page-hero__lede">{{ lesson.summary }}</p>
+    {% if lesson_position and total_lessons %}
+    <p>Lesson {{ lesson_position }} of {{ total_lessons }} in the beginner path.</p>
+    {% endif %}
+    {% if user.is_authenticated and lesson_progress %}
+    <div class="progress-banner">
+        {% if lesson_progress.is_completed %}
+        <span class="progress-pill progress-pill--complete">Completed</span>
+        {% elif lesson_progress.quiz_passed_at %}
+        <span class="progress-pill progress-pill--complete">Quiz Passed</span>
+        {% else %}
+        <span class="progress-pill">In Progress</span>
+        {% endif %}
+        <form method="post" action="{% url 'core:lesson_progress_update' lesson.slug %}">
+            {% csrf_token %}
+            {% if lesson_progress.is_completed %}
+            <input type="hidden" name="action" value="restart">
+            <button class="button button--ghost button--small" type="submit">Reset Lesson</button>
+            {% else %}
+            <input type="hidden" name="action" value="complete">
+            <button class="button button--primary button--small" type="submit">Mark Complete</button>
+            {% endif %}
+        </form>
+    </div>
+    {% elif not user.is_authenticated %}
+    <p><a href="{% url 'signup' %}">Create a free account</a> to save your progress as you work through lessons.</p>
+    {% endif %}
+</section>
+
+{% if user.is_authenticated and lesson_milestone %}
+<section class="panel {% if lesson_milestone.status == 'completed' %}panel--accent{% endif %}">
+    <p class="eyebrow">Milestone Status</p>
+    <h2>{{ lesson_milestone.celebration }}</h2>
+    {% if lesson_milestone.status == 'completed' %}
+    <p>You completed both this lesson and its paired challenge. That full rep is locked in.</p>
+    {% elif lesson_milestone.status == 'in_progress' and practice_challenge %}
+    <p>You have momentum here. Finishing <strong>{{ practice_challenge.title }}</strong> will complete this milestone.</p>
+    {% else %}
+    <p>This lesson is part of your next milestone on the beginner path.</p>
+    {% endif %}
+</section>
+{% endif %}
+
+{% if user.is_authenticated and lesson_completion_stack %}
+<section class="panel">
+    <p class="eyebrow">Completion Stack</p>
+    <h2>{{ lesson_stack_complete_count }} of {{ lesson_completion_stack|length }} steps finished</h2>
+    {% if lesson_next_action %}
+    <p class="hint-text"><strong>Recommended next action:</strong> {{ lesson_next_action }}</p>
+    {% endif %}
+    <ul class="stack-list stack-list--compact">
+        {% for item in lesson_completion_stack %}
+        <li>
+            <strong>{% if item.done %}Complete{% else %}Still to do{% endif %}</strong>
+            <span>{{ item.label }}</span>
+        </li>
+        {% endfor %}
+    </ul>
+</section>
+{% endif %}
+
+<section class="lesson-layout">
+    <article class="panel lesson-panel">
+        <p class="eyebrow">Goal</p>
+        <h2>{{ lesson.goal }}</h2>
+        <p>{{ lesson.explanation|linebreaksbr }}</p>
+
+        <div class="lesson-callout">
+            <strong>Try it:</strong>
+            <p>{{ lesson.try_it|linebreaksbr }}</p>
+        </div>
+
+        <div class="lesson-callout lesson-callout--warning">
+            <strong>Common mistake:</strong>
+            <p>{{ lesson.common_mistake|linebreaksbr }}</p>
+        </div>
+
+        <div class="lesson-callout">
+            <strong>Mini challenge:</strong>
+            <p>{{ lesson.mini_challenge|linebreaksbr }}</p>
+        </div>
+    </article>
+
+    <article class="panel panel--editor" data-python-runner data-lesson-slug="{{ lesson.slug }}">
+        <div class="editor-toolbar">
+            <div>
+                <p class="editor-toolbar__label">Runnable code</p>
+                <h2>Press Run and change one line.</h2>
+            </div>
+            <button class="button button--primary" type="button" data-run-python>Run Code</button>
+        </div>
+
+        <label class="visually-hidden" for="lesson-code">Python code editor</label>
+        <textarea id="lesson-code" class="code-editor" data-python-source>{{ lesson.starter_code }}</textarea>
+
+        <div class="editor-output">
+            <div class="editor-output__meta">
+                <span>Output</span>
+                <button class="button button--ghost button--small" type="button" data-reset-python>Reset</button>
+            </div>
+            <pre data-python-output>{{ lesson.expected_output }}</pre>
+        </div>
+        <p class="editor-note">Pyodide loads only on this page. On phones, learners can still read the lesson and copy the code later if the editor feels cramped.</p>
+    </article>
+</section>
+
+{% if practice_challenge %}
+<section class="panel panel--accent">
+    <p class="eyebrow">Practice This Next</p>
+    <h2>{{ practice_challenge.title }}</h2>
+    <p>{{ practice_challenge.prompt }}</p>
+    <p class="hint-text">Move from reading into practice while the concept is still fresh.</p>
+    <a class="button button--primary" href="{% url 'core:challenge_detail' practice_challenge.slug %}">Open Practice Challenge</a>
+</section>
+{% endif %}
+
+<section class="quiz-section">
+    <div class="section-heading">
+        <p class="eyebrow">Quick quiz</p>
+        <h2>Check understanding without pressure.</h2>
+    </div>
+    {% if user.is_authenticated and lesson_progress.quiz_attempts %}
+    <article class="panel">
+        <p><strong>Saved quiz progress:</strong> last score {{ lesson_progress.last_quiz_score }}%, best score {{ lesson_progress.best_quiz_score }}%, attempts {{ lesson_progress.quiz_attempts }}.</p>
+    </article>
+    {% endif %}
+    <form method="post" action="{% url 'core:lesson_quiz_submit' lesson.slug %}">
+        {% csrf_token %}
+        <div class="quiz-grid" data-track-view="quiz_view" data-lesson-slug="{{ lesson.slug }}">
+        {% for item in lesson.quiz %}
+        <article class="panel quiz-card">
+            <p class="quiz-card__question">{{ item.question }}</p>
+            <ol class="quiz-card__options">
+                {% for option in item.options %}
+                <li>
+                    <label>
+                        <input type="radio" name="question_{{ forloop.parentloop.counter0 }}" value="{{ forloop.counter0 }}">
+                        {{ option }}
+                    </label>
+                </li>
+                {% endfor %}
+            </ol>
+            <p class="quiz-card__explanation">{{ item.explanation }}</p>
+        </article>
+        {% endfor %}
+        </div>
+        <button class="button button--primary" type="submit">Score Quiz</button>
+    </form>
+</section>
+
+<section class="panel">
+    <p class="eyebrow">Keep going</p>
+    <h2>Move through the path without losing momentum.</h2>
+    <div class="button-row">
+        {% if previous_lesson %}
+        <a class="button button--ghost" href="{% url 'core:lesson_detail' previous_lesson.slug %}">Previous Lesson</a>
+        {% endif %}
+        {% if next_lesson %}
+        <a class="button button--primary" href="{% url 'core:lesson_detail' next_lesson.slug %}">Next Lesson</a>
+        {% else %}
+        <a class="button button--primary" href="{% url 'core:my_progress' %}">View My Progress</a>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

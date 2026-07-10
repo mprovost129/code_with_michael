@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+
+{% block title %}Insights{% endblock %}
+{% block meta_description %}Internal engagement summary for lesson views, quiz views, and code-run activity.{% endblock %}
+
+{% block content %}
+<section class="page-hero">
+    <p class="eyebrow">Insights</p>
+    <h1>See whether learners are actually practicing.</h1>
+    <p class="page-hero__lede">This internal dashboard turns raw engagement events into a quick picture of lesson traffic, quiz exposure, and code-run behavior.</p>
+</section>
+
+<section class="stats-grid">
+    <article class="stat-card">
+        <span class="stat-card__label">Total Events</span>
+        <strong>{{ totals.total_events|default:0 }}</strong>
+    </article>
+    <article class="stat-card">
+        <span class="stat-card__label">Lesson Views</span>
+        <strong>{{ totals.lesson_views|default:0 }}</strong>
+    </article>
+    <article class="stat-card">
+        <span class="stat-card__label">Quiz Views</span>
+        <strong>{{ totals.quiz_views|default:0 }}</strong>
+    </article>
+    <article class="stat-card">
+        <span class="stat-card__label">Code Runs</span>
+        <strong>{{ totals.code_runs|default:0 }}</strong>
+    </article>
+    <article class="stat-card">
+        <span class="stat-card__label">Successful Runs</span>
+        <strong>{{ totals.successful_runs|default:0 }}</strong>
+    </article>
+    <article class="stat-card">
+        <span class="stat-card__label">Errored Runs</span>
+        <strong>{{ totals.failed_runs|default:0 }}</strong>
+    </article>
+</section>
+
+<section class="two-column">
+    <article class="panel">
+        <div class="section-heading">
+            <p class="eyebrow">Lesson breakdown</p>
+            <h2>Which lessons are getting action</h2>
+        </div>
+        {% if lesson_breakdown %}
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Lesson</th>
+                        <th>Views</th>
+                        <th>Quiz</th>
+                        <th>Runs</th>
+                        <th>Success</th>
+                        <th>Errors</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lesson in lesson_breakdown %}
+                    <tr>
+                        <td>{{ lesson.title }}</td>
+                        <td>{{ lesson.lesson_views }}</td>
+                        <td>{{ lesson.quiz_views }}</td>
+                        <td>{{ lesson.code_runs }}</td>
+                        <td>{{ lesson.successful_runs }}</td>
+                        <td>{{ lesson.failed_runs }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p>No engagement data yet. Once learners visit lessons and press Run, the breakdown will appear here.</p>
+        {% endif %}
+    </article>
+
+    <article class="panel">
+        <div class="section-heading">
+            <p class="eyebrow">Recent activity</p>
+            <h2>Latest events</h2>
+        </div>
+        {% if recent_events %}
+        <ul class="stack-list stack-list--compact">
+            {% for event in recent_events %}
+            <li>
+                <strong>{{ event.get_event_type_display }}{% if event.lesson %} | {{ event.lesson.title }}{% endif %}</strong>
+                <span>{{ event.page_path }}{% if event.metadata.status %} | {{ event.metadata.status }}{% endif %}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>No events have been recorded yet.</p>
+        {% endif %}
+    </article>
+</section>
+{% endblock %}

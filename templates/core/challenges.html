@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block title %}Challenges{% endblock %}
+{% block meta_description %}Small beginner-friendly Python prompts with hints and expected outcomes.{% endblock %}
+
+{% block content %}
+<section class="page-hero">
+    <p class="eyebrow">Challenges</p>
+    <h1>Practice cards that turn reading into action.</h1>
+</section>
+
+<section class="section-grid">
+    {% for card in challenge_cards %}
+    {% with challenge=card.challenge progress=card.progress %}
+    <article class="info-card">
+        <p class="info-card__eyebrow">{{ challenge.difficulty }}</p>
+        <h2>{{ challenge.title }}</h2>
+        <p>{{ challenge.prompt }}</p>
+        <p class="hint-text">Hint: {{ challenge.hint }}</p>
+        <a class="button button--ghost" href="{% url 'core:challenge_detail' challenge.slug %}">Open Challenge</a>
+        {% if user.is_authenticated %}
+            <div class="lesson-callout">
+                {% if progress and progress.is_completed %}
+                <strong>Completed</strong>
+                <p>Saved on {{ progress.completed_at|date:"M j, Y" }}.</p>
+                {% elif progress %}
+                <strong>In Progress</strong>
+                <p>Last updated {{ progress.last_updated_at|date:"M j, Y" }}.</p>
+                {% else %}
+                <strong>Start here</strong>
+                <p>Save your thinking, rough draft, or final answer as you practice.</p>
+                {% endif %}
+            </div>
+            <form method="post" action="{% url 'core:challenge_progress_update' challenge.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{% url 'core:challenges' %}">
+                <label class="visually-hidden" for="challenge-response-{{ challenge.id }}">Challenge response</label>
+                <textarea
+                    id="challenge-response-{{ challenge.id }}"
+                    class="code-editor"
+                    name="response_text"
+                    rows="8"
+                    placeholder="Write your code idea, notes, pseudocode, or finished answer here..."
+                >{% if progress %}{{ progress.response_text }}{% endif %}</textarea>
+                <div class="button-row">
+                    <button class="button button--ghost" type="submit" name="action" value="save">Save Notes</button>
+                    <button class="button button--primary" type="submit" name="action" value="complete">Mark Complete</button>
+                    {% if progress %}
+                    <button class="button button--ghost button--small" type="submit" name="action" value="reset">Reset</button>
+                    {% endif %}
+                </div>
+            </form>
+        {% else %}
+        <p><a href="{% url 'signup' %}">Create a free account</a> to save challenge notes and completion progress.</p>
+        {% endif %}
+    </article>
+    {% endwith %}
+    {% endfor %}
+</section>
+{% endblock %}

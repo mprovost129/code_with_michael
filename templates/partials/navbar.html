@@ -1,0 +1,26 @@
+    <header class="site-header">
+        <nav class="site-nav">
+            <a class="brand-mark" href="{% url 'core:home' %}">
+                <span class="brand-mark__eyebrow">Beginner Python</span>
+                <span class="brand-mark__name">Code with Michael</span>
+            </a>
+            <div class="site-nav__links">
+                {% for page in nav_pages %}
+                    <a href="{% url page.url_name %}">{{ page.title }}</a>
+                {% endfor %}
+            </div>
+            <div class="site-nav__actions">
+                {% if user.is_staff %}
+                    <a class="button button--ghost" href="{% url 'core:insights' %}">Insights</a>
+                {% endif %}
+                {% if user.is_authenticated %}
+                    <a class="button button--ghost" href="{% url 'core:my_progress' %}">My Progress</a>
+                    <span class="nav-user">Hi, {{ user.get_short_name }}</span>
+                    <a class="button button--ghost" href="{% url 'logout' %}">Logout</a>
+                {% else %}
+                    <a class="button button--ghost" href="{% url 'login' %}">Login</a>
+                    <a class="button button--primary button--small" href="{% url 'signup' %}">Create Account</a>
+                {% endif %}
+            </div>
+        </nav>
+    </header>
