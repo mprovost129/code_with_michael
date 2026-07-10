@@ -99,6 +99,31 @@ class CommunityItem(OrderedContentModel):
         return self.title
 
 
+class Resource(OrderedContentModel):
+    CATEGORY_AMAZON = 'amazon'
+    CATEGORY_UDEMY = 'udemy'
+    CATEGORY_CODECADEMY = 'codecademy'
+    CATEGORY_MERCH = 'merch'
+    CATEGORY_OTHER = 'other'
+    CATEGORY_CHOICES = (
+        (CATEGORY_AMAZON, 'Amazon'),
+        (CATEGORY_UDEMY, 'Udemy'),
+        (CATEGORY_CODECADEMY, 'Codecademy'),
+        (CATEGORY_MERCH, 'Merchandise'),
+        (CATEGORY_OTHER, 'Other'),
+    )
+
+    title = models.CharField(max_length=200)
+    description = models.TextField()
+    url = models.URLField()
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default=CATEGORY_OTHER)
+    cta_label = models.CharField(max_length=50, default='View')
+    is_published = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.title
+
+
 class EngagementEvent(models.Model):
     EVENT_LESSON_VIEW = 'lesson_view'
     EVENT_CODE_RUN = 'code_run'

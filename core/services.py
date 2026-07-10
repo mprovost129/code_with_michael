@@ -8,6 +8,7 @@ from .models import (
     Lesson,
     Module,
     Project,
+    Resource,
     Tip,
     UserChallengeProgress,
     UserLessonProgress,
@@ -181,6 +182,12 @@ def get_community_items():
     if _published_exists(CommunityItem):
         return list(CommunityItem.objects.filter(is_published=True).order_by('display_order', 'id'))
     return content.COMMUNITY_ITEMS
+
+
+def get_resources():
+    if _published_exists(Resource):
+        return list(Resource.objects.filter(is_published=True).order_by('display_order', 'id'))
+    return content.RESOURCES
 
 
 def get_engagement_summary():

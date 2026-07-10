@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+
+{% block title %}Resources{% endblock %}
+{% block meta_description %}Recommended tools, courses, and gear for learning Python, including Amazon, Udemy, and Codecademy picks.{% endblock %}
+
+{% block content %}
+<section class="page-hero">
+    <p class="eyebrow">Recommended resources</p>
+    <h1>Tools and courses worth your time.</h1>
+    <p class="page-hero__lede">A short list of the books, courses, and gear that actually helped. Some links are affiliate links, which means this site may earn a small commission at no extra cost to you.</p>
+</section>
+
+<section class="section-grid">
+    {% for resource in resources %}
+    <article class="info-card">
+        <span class="tag">{{ resource.get_category_display }}</span>
+        <h2>{{ resource.title }}</h2>
+        <p>{{ resource.description }}</p>
+        <a class="button button--primary button--small" href="{{ resource.url }}" target="_blank" rel="nofollow sponsored noopener">{{ resource.cta_label }}</a>
+    </article>
+    {% empty %}
+    <p>Recommendations are coming soon.</p>
+    {% endfor %}
+</section>
+{% endblock %}

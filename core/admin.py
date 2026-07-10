@@ -9,6 +9,7 @@ from .models import (
     Lesson,
     Module,
     Project,
+    Resource,
     Tip,
     UserChallengeProgress,
     UserLessonProgress,
@@ -63,6 +64,14 @@ class CommunityItemAdmin(admin.ModelAdmin):
     list_display = ('title', 'display_order', 'is_published')
     list_filter = ('is_published',)
     search_fields = ('title', 'description')
+    ordering = ('display_order',)
+
+
+@admin.register(Resource)
+class ResourceAdmin(admin.ModelAdmin):
+    list_display = ('title', 'category', 'display_order', 'is_published')
+    list_filter = ('category', 'is_published')
+    search_fields = ('title', 'description', 'url')
     ordering = ('display_order',)
 
 

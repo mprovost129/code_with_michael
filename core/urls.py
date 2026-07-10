@@ -21,4 +21,5 @@ urlpatterns = [
     path('projects/', views.ProjectsView.as_view(), name='projects'),
     path('tips/', views.TipsView.as_view(), name='tips'),
     path('community/', views.CommunityView.as_view(), name='community'),
+    path('resources/', views.ResourcesView.as_view(), name='resources'),
 ]

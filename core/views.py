@@ -35,6 +35,7 @@ from .services import (
     get_lessons,
     get_modules,
     get_projects,
+    get_resources,
     get_tips,
     get_user_progress_summary,
 )
@@ -356,6 +357,15 @@ class CommunityView(NavigationContextMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['community_items'] = get_community_items()
+        return context
+
+
+class ResourcesView(NavigationContextMixin, TemplateView):
+    template_name = 'core/resources.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['resources'] = get_resources()
         return context
 
 

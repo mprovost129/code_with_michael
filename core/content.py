@@ -34,6 +34,7 @@ NAV_PAGES = [
     {'title': 'Projects', 'url_name': 'core:projects', 'description': 'Mini builds that combine multiple beginner skills.'},
     {'title': 'Tips', 'url_name': 'core:tips', 'description': 'Quick wins and common-mistake fixes from your social content.'},
     {'title': 'Community', 'url_name': 'core:community', 'description': 'Weekly prompts and learner shoutouts connected to your audience.'},
+    {'title': 'Resources', 'url_name': 'core:resources', 'description': 'Recommended tools, courses, and gear for learning Python.'},
 ]
 
 MODULES = [
@@ -837,6 +838,8 @@ TIPS = [
         'description': 'Reading a line like print("Hello") as a sentence can make Python feel less abstract.',
     },
 ]
+
+RESOURCES = []
 
 COMMUNITY_ITEMS = [
     {
