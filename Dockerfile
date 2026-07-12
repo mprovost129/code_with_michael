@@ -14,6 +14,18 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+# collectstatic only needs Django to boot, not real secrets or a live
+# database — these placeholders satisfy the required settings so the build
+# doesn't depend on secrets being present in the build context. Real values
+# are supplied at container runtime (docker run -e / compose env_file) and
+# always take precedence over these image defaults.
+ENV DJANGO_SETTINGS_MODULE=config.Settings.prod \
+    SECRET_KEY=build-time-placeholder-not-used-at-runtime \
+    ALLOWED_HOSTS=localhost \
+    DB_NAME=build \
+    DB_USER=build \
+    DB_PASSWORD=build
+
 RUN python manage.py collectstatic --noinput
 
 EXPOSE 8000

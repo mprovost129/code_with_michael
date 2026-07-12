@@ -1,0 +1,38 @@
+# Secrets — never bake these into an image layer. Supply real values at
+# container runtime via `docker run -e` / docker-compose `env_file`.
+.env
+.env.*
+!.env.example
+
+# Version control / editor / tooling
+.git
+.gitignore
+.claude
+.agents
+.pytest_cache
+.ruff_cache
+.pre-commit-config.yaml
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+.venv/
+venv/
+env/
+ENV/
+
+# Django runtime artifacts (generated inside the container, not needed from host)
+staticfiles/
+media/
+logs/
+db.sqlite3
+db.sqlite3-journal
+
+# Misc
+Code_with_michael.zip
+docker-compose.yml
