@@ -18,4 +18,39 @@
     </article>
     {% endfor %}
 </section>
+
+<section class="two-column">
+    <article class="panel">
+        <div class="section-heading">
+            <p class="eyebrow">Share something</p>
+            <h2>Post a shoutout or ask a question.</h2>
+        </div>
+        {% if user.is_authenticated %}
+        <form method="post">
+            {% csrf_token %}
+            {{ community_post_form.as_p }}
+            <button class="button button--primary" type="submit">Post to Community</button>
+        </form>
+        <p class="hint-text">Posts are reviewed before they show up in the feed.</p>
+        {% else %}
+        <p>Ready to share? <a href="{% url 'signup' %}">Create a free account</a> or <a href="{% url 'login' %}">log in</a> to post.</p>
+        {% endif %}
+    </article>
+    <article class="panel">
+        <div class="section-heading">
+            <p class="eyebrow">Latest from the community</p>
+            <h2>Recent shoutouts and questions.</h2>
+        </div>
+        <ul class="stack-list">
+            {% for post in community_posts %}
+            <li>
+                <strong>{{ post.user.get_short_name|default:post.user }} &middot; {{ post.get_post_type_display }}</strong>
+                <span>{{ post.body }}</span>
+            </li>
+            {% empty %}
+            <li><span>No community posts yet. Be the first to share something.</span></li>
+            {% endfor %}
+        </ul>
+    </article>
+</section>
 {% endblock %}

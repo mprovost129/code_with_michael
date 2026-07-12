@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Something Went Wrong &mdash; Code with Michael</title>
+    <style>
+        :root {
+            --paper: #f7f0e3;
+            --paper-strong: #fffaf2;
+            --ink: #1e293b;
+            --ink-soft: #526074;
+            --brand: #0f766e;
+            --brand-dark: #115e59;
+            --accent: #f97316;
+            --radius-lg: 28px;
+            --shadow: 0 24px 60px rgba(16, 37, 66, 0.12);
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--paper);
+            color: var(--ink);
+            font-family: "Manrope", "Segoe UI", system-ui, sans-serif;
+            padding: 2rem;
+        }
+        .error-card {
+            background: var(--paper-strong);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow);
+            padding: 3rem 2.5rem;
+            max-width: 480px;
+            text-align: center;
+        }
+        .error-card__code {
+            font-family: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+            font-weight: 700;
+            font-size: 3.5rem;
+            color: var(--accent);
+            margin: 0 0 0.5rem;
+        }
+        .error-card h1 {
+            font-size: 1.5rem;
+            margin: 0 0 0.75rem;
+        }
+        .error-card p {
+            color: var(--ink-soft);
+            line-height: 1.5;
+            margin: 0 0 1.75rem;
+        }
+        .button {
+            display: inline-block;
+            padding: 0.7rem 1.4rem;
+            border-radius: 999px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 0.95rem;
+            background: var(--brand);
+            color: #fff;
+        }
+        .button:hover {
+            background: var(--brand-dark);
+        }
+    </style>
+</head>
+<body>
+    <div class="error-card">
+        <p class="error-card__code">500</p>
+        <h1>Something broke on our end.</h1>
+        <p>This one&rsquo;s not on you &mdash; an error happened while loading this page. It&rsquo;s already been logged. Try again in a moment.</p>
+        <a class="button" href="/">Back to Home</a>
+    </div>
+</body>
+</html>

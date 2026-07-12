@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import EmailSubscriber
+from .models import CommunityPost, EmailSubscriber
 
 
 class EmailSubscriberForm(forms.ModelForm):
@@ -20,3 +20,16 @@ class EmailSubscriberForm(forms.ModelForm):
 
     def clean_email(self):
         return self.cleaned_data['email'].strip().lower()
+
+
+class CommunityPostForm(forms.ModelForm):
+    class Meta:
+        model = CommunityPost
+        fields = ('post_type', 'body')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['body'].widget.attrs.update({
+            'placeholder': 'Share a win, ask a question, or shout out something you built...',
+            'rows': 4,
+        })

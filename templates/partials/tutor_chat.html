@@ -1,0 +1,11 @@
+<section class="panel tutor-chat" data-tutor-chat data-lesson-slug="{{ lesson.slug }}" data-chat-url="{% url 'core:ai_tutor_chat' %}">
+    <p class="eyebrow">Ask the tutor</p>
+    <h2>Stuck on this lesson? Ask a quick question.</h2>
+    <div class="tutor-chat__messages" data-tutor-chat-messages></div>
+    <form class="tutor-chat__form" data-tutor-chat-form>
+        <label class="visually-hidden" for="tutor-chat-input">Ask a question about this lesson</label>
+        <textarea id="tutor-chat-input" data-tutor-chat-input rows="2" placeholder="e.g. Why do I need parentheses after print?"></textarea>
+        <button class="button button--primary button--small" type="submit">Ask</button>
+    </form>
+    <p class="hint-text">Answers focus on this lesson. For anything else, use the Community or Tips pages.</p>
+</section>

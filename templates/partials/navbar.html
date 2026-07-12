@@ -8,15 +8,52 @@
                 {% for page in nav_pages %}
                     <a href="{% url page.url_name %}">{{ page.title }}</a>
                 {% endfor %}
+                {% if nav_pages_more %}
+                <details class="nav-dropdown">
+                    <summary>More</summary>
+                    <div class="nav-dropdown__menu">
+                        {% for page in nav_pages_more %}
+                            <a href="{% url page.url_name %}">{{ page.title }}</a>
+                        {% endfor %}
+                    </div>
+                </details>
+                {% endif %}
             </div>
             <div class="site-nav__actions">
-                {% if user.is_staff %}
-                    <a class="button button--ghost" href="{% url 'core:insights' %}">Insights</a>
+                {% if social_links %}
+                <div class="site-nav__social">
+                    {% for social in social_links %}
+                    <a href="{{ social.url }}" target="_blank" rel="noopener" aria-label="{{ social.label }}"><i class="bi {{ social.icon }}"></i></a>
+                    {% endfor %}
+                </div>
                 {% endif %}
+                <a
+                    class="button button--accent button--small"
+                    href="{% url 'core:resources' %}"
+                    data-track-click="affiliate_click"
+                    data-track-metadata='{"link_type": "shop_cta", "source": "navbar"}'
+                >Shop Recommendations</a>
+                <details class="nav-dropdown nav-dropdown--search">
+                    <summary>Search</summary>
+                    <div class="nav-dropdown__menu nav-dropdown__menu--search">
+                        <form method="get" action="{% url 'core:search' %}">
+                            <label class="visually-hidden" for="nav-search">Search lessons, challenges, and projects</label>
+                            <input type="search" id="nav-search" name="q" placeholder="Search...">
+                            <button class="button button--primary button--small" type="submit">Go</button>
+                        </form>
+                    </div>
+                </details>
                 {% if user.is_authenticated %}
-                    <a class="button button--ghost" href="{% url 'core:my_progress' %}">My Progress</a>
-                    <span class="nav-user">Hi, {{ user.get_short_name }}</span>
-                    <a class="button button--ghost" href="{% url 'logout' %}">Logout</a>
+                <details class="nav-dropdown nav-dropdown--account">
+                    <summary>Hi, {{ user.get_short_name }}</summary>
+                    <div class="nav-dropdown__menu">
+                        <a href="{% url 'core:my_progress' %}">My Progress</a>
+                        {% if user.is_staff %}
+                        <a href="{% url 'core:insights' %}">Insights</a>
+                        {% endif %}
+                        <a href="{% url 'logout' %}">Logout</a>
+                    </div>
+                </details>
                 {% else %}
                     <a class="button button--ghost" href="{% url 'login' %}">Login</a>
                     <a class="button button--primary button--small" href="{% url 'signup' %}">Create Account</a>

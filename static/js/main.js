@@ -16,9 +16,47 @@ function getCookie(name) {
     return "";
 }
 
+function getRecaptchaToken(action) {
+    const siteKey = document.querySelector('meta[name="recaptcha-site-key"]')?.content;
+
+    return new Promise((resolve) => {
+        if (!siteKey || typeof grecaptcha === "undefined" || !grecaptcha.enterprise) {
+            // Not configured yet — the server treats a missing token as
+            // "unverified" only when reCAPTCHA is actually turned on.
+            resolve(null);
+            return;
+        }
+
+        try {
+            grecaptcha.enterprise.ready(() => {
+                grecaptcha.enterprise
+                    .execute(siteKey, { action })
+                    .then(resolve)
+                    .catch(() => resolve(null));
+            });
+        } catch (error) {
+            resolve(null);
+        }
+    });
+}
+
 async function trackEngagement(eventType, options = {}) {
     const endpoint = document.querySelector('meta[name="engagement-endpoint"]')?.content;
     if (!endpoint) {
+        return;
+    }
+
+    const payload = JSON.stringify({
+        event_type: eventType,
+        page_path: window.location.pathname,
+        lesson_slug: options.lessonSlug || null,
+        metadata: options.metadata || {},
+    });
+
+    // Same-tab navigations (e.g. an outbound CTA click) can unload the page
+    // before a fetch() finishes. sendBeacon is designed to survive that.
+    if (options.beacon && navigator.sendBeacon) {
+        navigator.sendBeacon(endpoint, new Blob([payload], { type: "application/json" }));
         return;
     }
 
@@ -30,12 +68,7 @@ async function trackEngagement(eventType, options = {}) {
                 "X-CSRFToken": getCookie("csrftoken"),
             },
             credentials: "same-origin",
-            body: JSON.stringify({
-                event_type: eventType,
-                page_path: window.location.pathname,
-                lesson_slug: options.lessonSlug || null,
-                metadata: options.metadata || {},
-            }),
+            body: payload,
         });
     } catch (error) {
         // Tracking should never interrupt learning interactions.
@@ -86,6 +119,7 @@ async function runPython(panel) {
     const source = panel.querySelector("[data-python-source]");
     const output = panel.querySelector("[data-python-output]");
     const runButton = panel.querySelector("[data-run-python]");
+    const stdinField = panel.querySelector("[data-python-stdin]");
     const lessonSlug = panel.dataset.lessonSlug || "";
 
     if (!source || !output || !runButton) {
@@ -99,6 +133,14 @@ async function runPython(panel) {
 
     try {
         const pyodide = await getPyodide();
+
+        const stdinLines = stdinField && stdinField.value
+            ? stdinField.value.split("\n")
+            : [];
+        pyodide.setStdin({
+            stdin: () => (stdinLines.length ? stdinLines.shift() : ""),
+        });
+
         const result = await pyodide.runPythonAsync(`
 import io
 import sys
@@ -113,6 +155,7 @@ buffer.getvalue()
         `);
 
         output.textContent = result || "Code ran successfully with no output.";
+        output.dataset.status = "success";
         trackEngagement("code_run", {
             lessonSlug,
             metadata: {
@@ -123,6 +166,7 @@ buffer.getvalue()
         });
     } catch (error) {
         output.textContent = error.message || "Something went wrong while running the code.";
+        output.dataset.status = "error";
         trackEngagement("code_run", {
             lessonSlug,
             metadata: {
@@ -137,11 +181,62 @@ buffer.getvalue()
     }
 }
 
+async function requestAiHint(panel) {
+    const hintButton = panel.querySelector("[data-ai-hint]");
+    const hintOutput = panel.querySelector("[data-ai-hint-output]");
+    const source = panel.querySelector("[data-python-source]");
+    const output = panel.querySelector("[data-python-output]");
+
+    if (!hintButton || !hintOutput || !source) {
+        return;
+    }
+
+    const endpoint = hintButton.dataset.hintUrl;
+    if (!endpoint) {
+        return;
+    }
+
+    const originalLabel = hintButton.textContent;
+    hintButton.disabled = true;
+    hintButton.textContent = "Thinking...";
+    hintOutput.hidden = false;
+    hintOutput.textContent = "Getting a hint...";
+
+    try {
+        const recaptchaToken = await getRecaptchaToken("ai_code_hint");
+        const response = await fetch(endpoint, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCookie("csrftoken"),
+            },
+            credentials: "same-origin",
+            body: JSON.stringify({
+                title: panel.dataset.hintTitle || "",
+                goal: panel.dataset.hintGoal || "",
+                code: source.value,
+                output: output ? output.textContent : "",
+                is_error: output ? output.dataset.status === "error" : false,
+                recaptcha_token: recaptchaToken,
+            }),
+        });
+        const data = await response.json();
+        hintOutput.textContent = data.ok ? data.hint : (data.error || "Hint isn't available right now.");
+    } catch (error) {
+        hintOutput.textContent = "Hint isn't available right now. Try again in a moment.";
+    } finally {
+        hintButton.disabled = false;
+        hintButton.textContent = originalLabel;
+    }
+}
+
 function setupPythonRunner(panel) {
     const runButton = panel.querySelector("[data-run-python]");
     const resetButton = panel.querySelector("[data-reset-python]");
+    const hintButton = panel.querySelector("[data-ai-hint]");
     const source = panel.querySelector("[data-python-source]");
     const output = panel.querySelector("[data-python-output]");
+    const stdinField = panel.querySelector("[data-python-stdin]");
 
     if (!runButton || !resetButton || !source || !output) {
         return;
@@ -157,8 +252,18 @@ function setupPythonRunner(panel) {
     resetButton.addEventListener("click", () => {
         source.value = initialSource;
         output.textContent = initialOutput;
+        delete output.dataset.status;
+        if (stdinField) {
+            stdinField.value = "";
+        }
         source.dispatchEvent(new Event("input", { bubbles: true }));
     });
+
+    if (hintButton) {
+        hintButton.addEventListener("click", () => {
+            requestAiHint(panel);
+        });
+    }
 }
 
 function setupChallengeAutosave(form) {
@@ -231,6 +336,209 @@ function setupChallengeAutosave(form) {
     });
 }
 
+function setupQuizExplain(card) {
+    const button = card.querySelector("[data-ai-quiz-explain]");
+    const output = card.querySelector("[data-ai-quiz-explanation]");
+
+    if (!button || !output) {
+        return;
+    }
+
+    const endpoint = button.dataset.explainUrl;
+    if (!endpoint) {
+        return;
+    }
+
+    button.addEventListener("click", async () => {
+        const lessonSlug = card.dataset.lessonSlug || "";
+        const questionIndex = Number.parseInt(card.dataset.questionIndex, 10);
+        const selected = card.querySelector('input[type="radio"]:checked');
+        const selectedAnswer = selected ? Number.parseInt(selected.value, 10) : null;
+
+        const originalLabel = button.textContent;
+        button.disabled = true;
+        button.textContent = "Thinking...";
+        output.hidden = false;
+        output.textContent = "Getting an explanation...";
+
+        try {
+            const recaptchaToken = await getRecaptchaToken("ai_quiz_explain");
+            const response = await fetch(endpoint, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCookie("csrftoken"),
+                },
+                credentials: "same-origin",
+                body: JSON.stringify({
+                    lesson_slug: lessonSlug,
+                    question_index: questionIndex,
+                    selected_answer: selectedAnswer,
+                    recaptcha_token: recaptchaToken,
+                }),
+            });
+            const data = await response.json();
+            output.textContent = data.ok ? data.explanation : (data.error || "Explanation isn't available right now.");
+        } catch (error) {
+            output.textContent = "Explanation isn't available right now. Try again in a moment.";
+        } finally {
+            button.disabled = false;
+            button.textContent = originalLabel;
+        }
+    });
+}
+
+function appendChatMessage(container, role, text) {
+    const bubble = document.createElement("p");
+    bubble.className = `tutor-chat__message tutor-chat__message--${role}`;
+    bubble.textContent = text;
+    container.appendChild(bubble);
+    container.scrollTop = container.scrollHeight;
+    return bubble;
+}
+
+function setupTutorChat(section) {
+    const form = section.querySelector("[data-tutor-chat-form]");
+    const input = section.querySelector("[data-tutor-chat-input]");
+    const messages = section.querySelector("[data-tutor-chat-messages]");
+    const endpoint = section.dataset.chatUrl;
+    const lessonSlug = section.dataset.lessonSlug || "";
+
+    if (!form || !input || !messages || !endpoint) {
+        return;
+    }
+
+    const history = [];
+
+    form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const message = input.value.trim();
+        if (!message) {
+            return;
+        }
+
+        appendChatMessage(messages, "user", message);
+        input.value = "";
+        input.disabled = true;
+
+        const thinkingBubble = appendChatMessage(messages, "assistant", "Thinking...");
+
+        try {
+            const recaptchaToken = await getRecaptchaToken("ai_tutor_chat");
+            const response = await fetch(endpoint, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCookie("csrftoken"),
+                },
+                credentials: "same-origin",
+                body: JSON.stringify({
+                    lesson_slug: lessonSlug,
+                    message,
+                    history,
+                    recaptcha_token: recaptchaToken,
+                }),
+            });
+            const data = await response.json();
+            const reply = data.ok ? data.reply : (data.error || "The tutor isn't available right now.");
+            thinkingBubble.textContent = reply;
+            history.push({ role: "user", content: message });
+            history.push({ role: "assistant", content: reply });
+        } catch (error) {
+            thinkingBubble.textContent = "The tutor isn't available right now. Try again in a moment.";
+        } finally {
+            input.disabled = false;
+            input.focus();
+        }
+    });
+}
+
+function setupNavDropdowns() {
+    const dropdowns = document.querySelectorAll(".nav-dropdown");
+    if (!dropdowns.length) {
+        return;
+    }
+
+    dropdowns.forEach((dropdown) => {
+        dropdown.addEventListener("toggle", () => {
+            if (!dropdown.open) {
+                return;
+            }
+
+            dropdowns.forEach((other) => {
+                if (other !== dropdown && other.open) {
+                    other.removeAttribute("open");
+                }
+            });
+
+            if (dropdown.classList.contains("nav-dropdown--search")) {
+                const input = dropdown.querySelector('input[type="search"]');
+                if (input) {
+                    window.setTimeout(() => input.focus(), 0);
+                }
+            }
+        });
+    });
+
+    document.addEventListener("click", (event) => {
+        dropdowns.forEach((dropdown) => {
+            if (dropdown.open && !dropdown.contains(event.target)) {
+                dropdown.removeAttribute("open");
+            }
+        });
+    });
+}
+
+function setupClickTracking() {
+    document.querySelectorAll("[data-track-click]").forEach((link) => {
+        link.addEventListener("click", () => {
+            const eventType = link.dataset.trackClick;
+            let metadata = {};
+            if (link.dataset.trackMetadata) {
+                try {
+                    metadata = JSON.parse(link.dataset.trackMetadata);
+                } catch (error) {
+                    metadata = {};
+                }
+            }
+            // A new-tab link leaves the current page intact, so a normal
+            // fetch is fine; a same-tab link needs sendBeacon to survive
+            // the navigation that starts immediately after this click.
+            const opensNewTab = link.target === "_blank";
+            trackEngagement(eventType, { metadata, beacon: !opensNewTab });
+        });
+    });
+}
+
+function setupRecaptchaForm(form) {
+    form.addEventListener("submit", (event) => {
+        if (form.dataset.recaptchaVerified === "true") {
+            return;
+        }
+
+        event.preventDefault();
+        const action = form.dataset.recaptchaAction || "submit";
+
+        getRecaptchaToken(action).then((token) => {
+            let field = form.querySelector('input[name="recaptcha_token"]');
+            if (!field) {
+                field = document.createElement("input");
+                field.type = "hidden";
+                field.name = "recaptcha_token";
+                form.appendChild(field);
+            }
+            field.value = token || "";
+            form.dataset.recaptchaVerified = "true";
+
+            if (form.requestSubmit) {
+                form.requestSubmit();
+            } else {
+                form.submit();
+            }
+        });
+    });
+}
+
 function setupTrackedViews() {
     document.querySelectorAll("[data-track-view]").forEach((element) => {
         const eventType = element.dataset.trackView;
@@ -247,7 +555,12 @@ function setupTrackedViews() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+    setupNavDropdowns();
     setupTrackedViews();
+    setupClickTracking();
     document.querySelectorAll("[data-python-runner]").forEach(setupPythonRunner);
     document.querySelectorAll("[data-challenge-autosave-form]").forEach(setupChallengeAutosave);
+    document.querySelectorAll("[data-quiz-question]").forEach(setupQuizExplain);
+    document.querySelectorAll("[data-tutor-chat]").forEach(setupTutorChat);
+    document.querySelectorAll("[data-recaptcha-action]").forEach(setupRecaptchaForm);
 });

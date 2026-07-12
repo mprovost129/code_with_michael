@@ -33,6 +33,35 @@
     </article>
 </section>
 
+<section class="two-column">
+    <article class="panel panel--accent">
+        <p class="eyebrow">Streak</p>
+        {% if current_streak %}
+        <h2>{{ current_streak }} day{{ current_streak|pluralize }} and counting</h2>
+        <p>You have completed a lesson or challenge every day this streak. Keep it alive by finishing one today.</p>
+        {% else %}
+        <h2>Start a streak today.</h2>
+        <p>Complete a lesson or challenge today to start a new streak.</p>
+        {% endif %}
+        <p class="hint-text">Longest streak so far: {{ longest_streak }} day{{ longest_streak|pluralize }}.</p>
+    </article>
+
+    <article class="panel">
+        <div class="section-heading">
+            <p class="eyebrow">Badges</p>
+            <h2>{{ earned_badge_count }} of {{ badges|length }} earned</h2>
+        </div>
+        <div class="badge-grid">
+            {% for badge in badges %}
+            <div class="badge-tile {% if badge.earned %}badge-tile--earned{% endif %}">
+                <strong>{{ badge.label }}</strong>
+                <span>{{ badge.description }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </article>
+</section>
+
 <section class="panel panel--accent">
     <p class="eyebrow">Latest Win</p>
     {% if latest_completed_milestone %}

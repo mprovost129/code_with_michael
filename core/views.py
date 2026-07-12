@@ -4,30 +4,49 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.mail import send_mail
-from django.http import Http404
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import redirect
 from django.utils import timezone
-from django.views import View
 from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import ensure_csrf_cookie
+from django.utils.http import url_has_allowed_host_and_scheme
+from django.views import View
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.generic import TemplateView
 
+from .ai import (
+    FALLBACK_MESSAGE,
+    check_rate_limit,
+    get_code_hint,
+    get_quiz_explanation,
+    get_tutor_reply,
+)
 from .content import (
     HOME_FEATURES,
     NAV_PAGES,
+    NAV_PAGES_MORE,
     ROADMAP_STEPS,
     SITE_STATS,
+    SOCIAL_LINKS,
 )
-from .forms import EmailSubscriberForm
-from .models import Challenge, EmailSubscriber, EngagementEvent, Lesson, UserChallengeProgress, UserLessonProgress
+from .forms import CommunityPostForm, EmailSubscriberForm
+from .models import (
+    Challenge,
+    EmailSubscriber,
+    EngagementEvent,
+    Lesson,
+    UserChallengeProgress,
+    UserLessonProgress,
+)
 from .onboarding import send_subscriber_welcome_email
+from .recaptcha import verify_recaptcha
 from .services import (
     build_lesson_path_cards,
-    get_challenge_milestones,
+    build_shuffled_quiz,
     get_challenge,
+    get_challenge_milestones,
     get_challenges,
     get_community_items,
+    get_community_posts,
     get_engagement_summary,
     get_lesson,
     get_lesson_milestone,
@@ -36,8 +55,10 @@ from .services import (
     get_modules,
     get_projects,
     get_resources,
+    get_streak_and_badges,
     get_tips,
     get_user_progress_summary,
+    search_content,
 )
 
 
@@ -49,7 +70,9 @@ class NavigationContextMixin:
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['nav_pages'] = NAV_PAGES
+        context['nav_pages_more'] = NAV_PAGES_MORE
         context['site_stats'] = SITE_STATS
+        context['social_links'] = SOCIAL_LINKS
         return context
 
 
@@ -71,12 +94,24 @@ class HomeView(NavigationContextMixin, TemplateView):
             'tips': tips[:2],
             'email_subscriber_form': kwargs.get('email_subscriber_form') or EmailSubscriberForm(),
         })
+        if self.request.user.is_authenticated:
+            summary = get_user_progress_summary(self.request.user)
+            context.update({
+                'continue_lesson': summary['continue_lesson'],
+                'continue_lesson_challenge': summary['continue_lesson_challenge'],
+                'recommended_next_lesson': summary['recommended_next_lesson'],
+                'recommended_next_challenge': summary['recommended_next_challenge'],
+            })
         return context
 
     def post(self, request, *args, **kwargs):
         form = EmailSubscriberForm(request.POST)
         if not form.is_valid():
             return self.render_to_response(self.get_context_data(email_subscriber_form=form))
+
+        if not verify_recaptcha(request.POST.get('recaptcha_token', ''), 'email_signup', request=request):
+            messages.error(request, 'We could not verify that submission. Please try again.')
+            return redirect('core:home')
 
         subscriber, created = EmailSubscriber.objects.get_or_create(
             email=form.cleaned_data['email'],
@@ -165,6 +200,10 @@ class LessonDetailView(NavigationContextMixin, TemplateView):
         if lesson is None:
             raise Http404('Lesson not found')
         context['lesson'] = lesson
+        quiz = getattr(lesson, 'quiz', None)
+        if quiz is None and isinstance(lesson, dict):
+            quiz = lesson.get('quiz')
+        context['shuffled_quiz'] = build_shuffled_quiz(quiz or [])
         practice_challenge = get_lesson_practice_challenge(lesson)
         context['practice_challenge'] = practice_challenge
         if hasattr(lesson, 'pk'):
@@ -357,6 +396,40 @@ class CommunityView(NavigationContextMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['community_items'] = get_community_items()
+        context['community_posts'] = get_community_posts()
+        context['community_post_form'] = kwargs.get('community_post_form') or CommunityPostForm()
+        return context
+
+    def post(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            messages.info(request, 'Create a free account to share a shoutout or question with the community.')
+            return redirect('core:community')
+
+        if check_rate_limit(request, 'community_post', limit=5, window_seconds=3600):
+            messages.error(request, 'You have posted a lot in the last hour. Please wait a bit before posting again.')
+            return redirect('core:community')
+
+        form = CommunityPostForm(request.POST)
+        if not form.is_valid():
+            return self.render_to_response(self.get_context_data(community_post_form=form))
+
+        post = form.save(commit=False)
+        post.user = request.user
+        post.save()
+        messages.success(request, 'Thanks for sharing! Your post will show up here once it is approved.')
+        return redirect('core:community')
+
+
+class SearchView(NavigationContextMixin, TemplateView):
+    template_name = 'core/search.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        query = self.request.GET.get('q', '').strip()
+        results = search_content(query) if query else {'lessons': [], 'challenges': [], 'projects': []}
+        context['query'] = query
+        context['results'] = results
+        context['result_count'] = sum(len(items) for items in results.values())
         return context
 
 
@@ -369,12 +442,33 @@ class ResourcesView(NavigationContextMixin, TemplateView):
         return context
 
 
+class PrivacyPolicyView(NavigationContextMixin, TemplateView):
+    template_name = 'core/privacy_policy.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['contact_email'] = settings.MARKETING_CONTACT_EMAIL
+        context['ga_enabled'] = bool(settings.GA_MEASUREMENT_ID)
+        context['recaptcha_enabled'] = bool(settings.RECAPTCHA_SITE_KEY)
+        return context
+
+
+class TermsOfServiceView(NavigationContextMixin, TemplateView):
+    template_name = 'core/terms_of_service.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['contact_email'] = settings.MARKETING_CONTACT_EMAIL
+        return context
+
+
 class MyProgressView(LoginRequiredMixin, NavigationContextMixin, TemplateView):
     template_name = 'core/my_progress.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context.update(get_user_progress_summary(self.request.user))
+        context.update(get_streak_and_badges(self.request.user))
         return context
 
 
@@ -505,6 +599,15 @@ class LessonQuizSubmitView(View):
         return redirect('core:lesson_detail', slug=lesson.slug)
 
 
+def _safe_next_redirect(request, fallback):
+    next_url = request.POST.get('next')
+    if next_url and url_has_allowed_host_and_scheme(
+        url=next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        return redirect(next_url)
+    return redirect(fallback)
+
+
 class ChallengeProgressUpdateView(LoginRequiredMixin, View):
     http_method_names = ['post']
 
@@ -527,7 +630,7 @@ class ChallengeProgressUpdateView(LoginRequiredMixin, View):
             progress.completed_at = None
             progress.save(update_fields=['response_text', 'is_completed', 'completed_at', 'last_updated_at'])
             messages.info(request, 'Challenge notes cleared. You can start fresh anytime.')
-            return redirect(request.POST.get('next') or 'core:challenges')
+            return _safe_next_redirect(request, 'core:challenges')
 
         progress.response_text = response_text
 
@@ -557,7 +660,7 @@ class ChallengeProgressUpdateView(LoginRequiredMixin, View):
             progress.save(update_fields=['response_text', 'is_completed', 'completed_at', 'last_updated_at'])
             messages.success(request, 'Challenge notes saved. Come back and finish when you are ready.')
 
-        return redirect(request.POST.get('next') or 'core:challenges')
+        return _safe_next_redirect(request, 'core:challenges')
 
 
 class ChallengeAutosaveView(LoginRequiredMixin, View):
@@ -589,10 +692,148 @@ class ChallengeAutosaveView(LoginRequiredMixin, View):
         )
 
 
+def _track_ai_usage(request, feature, outcome, lesson_slug=''):
+    if request.session.session_key is None:
+        request.session.create()
+    EngagementEvent.objects.create(
+        event_type=EngagementEvent.EVENT_AI_USAGE,
+        page_path=request.path,
+        user=request.user if request.user.is_authenticated else None,
+        session_key=request.session.session_key or '',
+        metadata={
+            'feature': feature,
+            'outcome': outcome,
+            'lesson_slug': lesson_slug,
+        },
+    )
+
+
+class AiCodeHintView(View):
+    http_method_names = ['post']
+
+    def post(self, request, *args, **kwargs):
+        if check_rate_limit(request, 'code_hint'):
+            _track_ai_usage(request, 'code_hint', 'rate_limited')
+            return JsonResponse({'ok': False, 'error': 'Hint limit reached for now. Try again later.'}, status=429)
+
+        try:
+            payload = json.loads(request.body.decode('utf-8'))
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return JsonResponse({'ok': False, 'error': 'Invalid JSON payload.'}, status=400)
+
+        code = (payload.get('code') or '').strip()[:4000]
+        if not code:
+            return JsonResponse({'ok': False, 'error': 'Add some code first.'}, status=400)
+
+        if not verify_recaptcha(payload.get('recaptcha_token', ''), 'ai_code_hint', request=request):
+            return JsonResponse({'ok': False, 'error': 'Verification failed. Please refresh and try again.'}, status=403)
+
+        hint = get_code_hint(
+            title=(payload.get('title') or '')[:200],
+            goal=(payload.get('goal') or '')[:1000],
+            code=code,
+            output=(payload.get('output') or '')[:2000],
+            is_error=bool(payload.get('is_error')),
+        )
+        _track_ai_usage(request, 'code_hint', 'error' if hint == FALLBACK_MESSAGE else 'success')
+        return JsonResponse({'ok': True, 'hint': hint})
+
+
+class AiQuizExplainView(View):
+    http_method_names = ['post']
+
+    def post(self, request, *args, **kwargs):
+        if check_rate_limit(request, 'quiz_explain'):
+            _track_ai_usage(request, 'quiz_explain', 'rate_limited')
+            return JsonResponse({'ok': False, 'error': 'Explanation limit reached for now. Try again later.'}, status=429)
+
+        try:
+            payload = json.loads(request.body.decode('utf-8'))
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return JsonResponse({'ok': False, 'error': 'Invalid JSON payload.'}, status=400)
+
+        lesson_slug = payload.get('lesson_slug') or ''
+        lesson = get_lesson(lesson_slug)
+        quiz = getattr(lesson, 'quiz', None) if lesson is not None else None
+        if quiz is None and isinstance(lesson, dict):
+            quiz = lesson.get('quiz')
+        quiz = quiz or []
+
+        question_index = payload.get('question_index')
+        if not isinstance(question_index, int) or not (0 <= question_index < len(quiz)):
+            return JsonResponse({'ok': False, 'error': 'Unknown quiz question.'}, status=400)
+
+        item = quiz[question_index]
+        selected_answer = payload.get('selected_answer')
+        if not isinstance(selected_answer, int):
+            selected_answer = None
+
+        if not verify_recaptcha(payload.get('recaptcha_token', ''), 'ai_quiz_explain', request=request):
+            return JsonResponse({'ok': False, 'error': 'Verification failed. Please refresh and try again.'}, status=403)
+
+        explanation = get_quiz_explanation(
+            question=item.get('question', ''),
+            options=item.get('options', []),
+            correct_answer=item.get('answer'),
+            selected_answer=selected_answer,
+        )
+        _track_ai_usage(request, 'quiz_explain', 'error' if explanation == FALLBACK_MESSAGE else 'success', lesson_slug=lesson_slug)
+        return JsonResponse({'ok': True, 'explanation': explanation})
+
+
+class AiTutorChatView(View):
+    http_method_names = ['post']
+
+    def post(self, request, *args, **kwargs):
+        if check_rate_limit(request, 'tutor_chat', limit=15):
+            _track_ai_usage(request, 'tutor_chat', 'rate_limited')
+            return JsonResponse({'ok': False, 'error': 'Chat limit reached for now. Try again later.'}, status=429)
+
+        try:
+            payload = json.loads(request.body.decode('utf-8'))
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return JsonResponse({'ok': False, 'error': 'Invalid JSON payload.'}, status=400)
+
+        message = (payload.get('message') or '').strip()[:2000]
+        if not message:
+            return JsonResponse({'ok': False, 'error': 'Type a question first.'}, status=400)
+
+        if not verify_recaptcha(payload.get('recaptcha_token', ''), 'ai_tutor_chat', request=request):
+            return JsonResponse({'ok': False, 'error': 'Verification failed. Please refresh and try again.'}, status=403)
+
+        history = payload.get('history')
+        if not isinstance(history, list):
+            history = []
+
+        lesson_slug = payload.get('lesson_slug') or ''
+        lesson = get_lesson(lesson_slug)
+
+        def _field(name):
+            if lesson is None:
+                return ''
+            if isinstance(lesson, dict):
+                return lesson.get(name, '')
+            return getattr(lesson, name, '')
+
+        reply = get_tutor_reply(
+            lesson_title=_field('title'),
+            lesson_summary=_field('summary'),
+            lesson_explanation=_field('explanation'),
+            history=history,
+            message=message,
+        )
+        _track_ai_usage(request, 'tutor_chat', 'error' if reply == FALLBACK_MESSAGE else 'success', lesson_slug=lesson_slug)
+        return JsonResponse({'ok': True, 'reply': reply})
+
+
+@method_decorator(csrf_exempt, name='dispatch')
 class EngagementEventCreateView(View):
     http_method_names = ['post']
 
     def post(self, request, *args, **kwargs):
+        if check_rate_limit(request, 'engagement_event', limit=300, window_seconds=3600):
+            return JsonResponse({'ok': False, 'error': 'Too many events.'}, status=429)
+
         try:
             payload = json.loads(request.body.decode('utf-8'))
         except (json.JSONDecodeError, UnicodeDecodeError):
@@ -616,7 +857,7 @@ class EngagementEventCreateView(View):
 
         EngagementEvent.objects.create(
             event_type=event_type,
-            page_path=payload.get('page_path', '')[:255],
+            page_path=(payload.get('page_path') or '')[:255],
             lesson=lesson,
             user=request.user if request.user.is_authenticated else None,
             session_key=request.session.session_key or '',

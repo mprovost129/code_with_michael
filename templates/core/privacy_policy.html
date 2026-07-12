@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+
+{% block title %}Privacy Policy{% endblock %}
+{% block meta_description %}How Code with Michael collects, uses, and protects your information.{% endblock %}
+
+{% block content %}
+<section class="page-hero">
+    <p class="eyebrow">Legal</p>
+    <h1>Privacy Policy</h1>
+    <p class="page-hero__lede">Last updated {% now "F j, Y" %}. This page explains what information Code with Michael collects, why, and how you can control it. It is written in plain English, not legal boilerplate &mdash; if you have questions, use the contact details at the bottom.</p>
+</section>
+
+<section class="panel">
+    <div class="section-heading">
+        <p class="eyebrow">Information we collect</p>
+        <h2>What we store</h2>
+    </div>
+    <ul class="stack-list">
+        <li>
+            <strong>Account information</strong>
+            <span>If you create an account, we store your email address, username, and any name you provide, along with your lesson and challenge progress so you can pick up where you left off.</span>
+        </li>
+        <li>
+            <strong>Email list signups</strong>
+            <span>If you join the email list without creating an account, we store your email address and optional first name so we can send the lessons, challenges, and recaps you signed up for.</span>
+        </li>
+        <li>
+            <strong>Community posts</strong>
+            <span>If you submit a shoutout or question to the Community page, we store the text along with your account so it can be reviewed before appearing publicly.</span>
+        </li>
+        <li>
+            <strong>Usage analytics</strong>
+            <span>We log which lessons, challenges, and quizzes you view, whether your code ran successfully, and which affiliate or shop links you click. These events are tied to a session identifier and, if you are logged in, your account &mdash; not sold or shared with advertisers.</span>
+        </li>
+        <li>
+            <strong>AI tutor interactions</strong>
+            <span>If you use the AI hint, quiz explanation, or tutor chat features, the code, question, or message you submit is sent to Anthropic (the maker of Claude) to generate a response. See "Third-party services" below.</span>
+        </li>
+    </ul>
+</section>
+
+<section class="panel">
+    <div class="section-heading">
+        <p class="eyebrow">Third-party services</p>
+        <h2>Who we share data with</h2>
+    </div>
+    <ul class="stack-list">
+        <li>
+            <strong>Anthropic (Claude API)</strong>
+            <span>Code, quiz questions, and chat messages you submit to an AI feature are sent to Anthropic to generate a response. We do not send your name, email, or account details as part of that request. See Anthropic's privacy policy for how they handle this data.</span>
+        </li>
+        {% if ga_enabled %}
+        <li>
+            <strong>Google Analytics</strong>
+            <span>We use Google Analytics to understand where visitors come from and how the site is used. Google Analytics uses cookies and may collect your IP address and browser information. See Google's privacy policy for details.</span>
+        </li>
+        {% endif %}
+        {% if recaptcha_enabled %}
+        <li>
+            <strong>Google reCAPTCHA</strong>
+            <span>This site is protected by reCAPTCHA to prevent spam and abuse, and the <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google Privacy Policy</a> and <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms of Service</a> apply.</span>
+        </li>
+        {% endif %}
+        <li>
+            <strong>Amazon Associates and other affiliate partners</strong>
+            <span>Some links on this site (including on the Resources page) are affiliate links. Clicking one may set a cookie on the retailer's site so we can earn a commission on a purchase &mdash; this does not change the price you pay. We do not receive any personal information back from these clicks.</span>
+        </li>
+        <li>
+            <strong>Amazon Web Services (AWS)</strong>
+            <span>Images and uploaded media are stored using Amazon S3, a cloud storage provider.</span>
+        </li>
+        <li>
+            <strong>Email delivery</strong>
+            <span>Account and list emails are sent through our email provider, which processes your email address solely to deliver those messages.</span>
+        </li>
+    </ul>
+</section>
+
+<section class="two-column">
+    <article class="panel">
+        <div class="section-heading">
+            <p class="eyebrow">Cookies</p>
+            <h2>What we use them for</h2>
+        </div>
+        <p>We use a session cookie to keep you logged in and a security cookie to protect forms from tampering. Both are required for the site to function.{% if ga_enabled %} If Google Analytics is active, it may set additional cookies to measure site usage.{% endif %} We do not use cookies to build advertising profiles.</p>
+    </article>
+    <article class="panel">
+        <div class="section-heading">
+            <p class="eyebrow">Your choices</p>
+            <h2>Access, correction, deletion</h2>
+        </div>
+        <p>You can update your account details while logged in, or unsubscribe from list emails using the link in any email we send. To request a copy of your data, a correction, or full deletion of your account and associated data, contact us using the details below.</p>
+    </article>
+</section>
+
+<section class="panel">
+    <div class="section-heading">
+        <p class="eyebrow">Children's privacy</p>
+        <h2>Not directed at children under 13</h2>
+    </div>
+    <p>Code with Michael is intended for a general audience learning to code and is not directed at children under 13. We do not knowingly collect personal information from children under 13. If you believe a child has provided us with personal information, contact us and we will remove it.</p>
+</section>
+
+<section class="panel">
+    <div class="section-heading">
+        <p class="eyebrow">Changes to this policy</p>
+        <h2>We may update this page</h2>
+    </div>
+    <p>As the site adds or changes features, this policy may be updated. Meaningful changes will be reflected by updating the "last updated" date at the top of this page.</p>
+</section>
+
+<section class="panel panel--accent">
+    <p class="eyebrow">Questions</p>
+    <h2>Contact us</h2>
+    {% if contact_email %}
+    <p>Reach out at <a href="mailto:{{ contact_email }}">{{ contact_email }}</a> with any privacy questions or requests.</p>
+    {% else %}
+    <p>Reach out through the email address listed on our Community and Resources pages with any privacy questions or requests.</p>
+    {% endif %}
+    <p class="hint-text">This page is provided for transparency and is not a substitute for legal advice. If you need a policy tailored to specific legal requirements in your jurisdiction, consider having it reviewed by a professional. See also our <a href="{% url 'core:terms_of_service' %}">Terms of Service</a>.</p>
+</section>
+{% endblock %}

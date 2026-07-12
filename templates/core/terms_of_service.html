@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+
+{% block title %}Terms of Service{% endblock %}
+{% block meta_description %}The terms for using Code with Michael, including the AI tutor, Community posts, and account rules.{% endblock %}
+
+{% block content %}
+<section class="page-hero">
+    <p class="eyebrow">Legal</p>
+    <h1>Terms of Service</h1>
+    <p class="page-hero__lede">Last updated {% now "F j, Y" %}. These are the terms for using Code with Michael. They're written in plain English, not legal boilerplate &mdash; if you have questions, use the contact details at the bottom.</p>
+</section>
+
+<section class="panel">
+    <div class="section-heading">
+        <p class="eyebrow">The basics</p>
+        <h2>Using this site</h2>
+    </div>
+    <p>Code with Michael provides free, beginner-friendly Python lessons, practice challenges, and related tools, including an AI-powered tutor. By using this site &mdash; with or without an account &mdash; you agree to these terms. If you don't agree, please don't use the site.</p>
+</section>
+
+<section class="panel">
+    <div class="section-heading">
+        <p class="eyebrow">Accounts</p>
+        <h2>Your responsibilities</h2>
+    </div>
+    <ul class="stack-list">
+        <li>
+            <strong>Accurate information</strong>
+            <span>You're responsible for keeping your account details accurate and your login credentials secure.</span>
+        </li>
+        <li>
+            <strong>One account per person</strong>
+            <span>Accounts are for individual use. Don't share credentials or create multiple accounts to get around rate limits.</span>
+        </li>
+        <li>
+            <strong>Termination</strong>
+            <span>We may suspend or remove an account that violates these terms, including abusing the AI features, posting inappropriate content, or attempting to disrupt the site.</span>
+        </li>
+    </ul>
+</section>
+
+<section class="panel">
+    <div class="section-heading">
+        <p class="eyebrow">AI tutor features</p>
+        <h2>Code hints, quiz explanations, and chat</h2>
+    </div>
+    <ul class="stack-list">
+        <li>
+            <strong>Educational use only</strong>
+            <span>AI responses are generated to help you learn Python concepts. They are not guaranteed to be accurate, complete, or bug-free, and should not be relied on as professional, legal, or production-critical advice.</span>
+        </li>
+        <li>
+            <strong>Rate limits</strong>
+            <span>AI features are rate-limited per session or account to keep the service available and affordable for everyone. Limits may change without notice.</span>
+        </li>
+        <li>
+            <strong>No sensitive submissions</strong>
+            <span>Don't submit passwords, API keys, personal data, or anything confidential into a code hint, quiz explanation, or chat message &mdash; that content is sent to a third-party AI provider (Anthropic) to generate a response. See the <a href="{% url 'core:privacy_policy' %}">Privacy Policy</a> for details.</span>
+        </li>
+    </ul>
+</section>
+
+<section class="panel">
+    <div class="section-heading">
+        <p class="eyebrow">Community posts</p>
+        <h2>Shoutouts and questions</h2>
+    </div>
+    <p>Signed-in users can submit shoutouts and questions to the Community page. Posts are reviewed before they appear publicly. Don't post content that is abusive, spammy, off-topic, illegal, or infringes on someone else's rights. We may remove any post, at any time, without notice, and repeated violations may result in account suspension. You retain ownership of what you post, but you grant us permission to display it on the site.</p>
+</section>
+
+<section class="two-column">
+    <article class="panel">
+        <div class="section-heading">
+            <p class="eyebrow">Affiliate links</p>
+            <h2>Resources page</h2>
+        </div>
+        <p>As an Amazon Associate, we earn from qualifying purchases made through affiliate links on this site. This doesn't change the price you pay. See the Resources page for the full disclosure.</p>
+    </article>
+    <article class="panel">
+        <div class="section-heading">
+            <p class="eyebrow">No warranty</p>
+            <h2>Provided "as is"</h2>
+        </div>
+        <p>This site, its lessons, code examples, and AI features are provided "as is" without warranties of any kind. We do our best to keep things accurate and available, but we don't guarantee uninterrupted access or error-free content.</p>
+    </article>
+</section>
+
+<section class="panel">
+    <div class="section-heading">
+        <p class="eyebrow">Limitation of liability</p>
+        <h2>What we're not responsible for</h2>
+    </div>
+    <p>To the fullest extent permitted by law, Code with Michael is not liable for any indirect, incidental, or consequential damages arising from your use of the site, including reliance on lesson content, code examples, or AI-generated responses. If you use code from this site in a real project, review and test it yourself first.</p>
+</section>
+
+<section class="panel">
+    <div class="section-heading">
+        <p class="eyebrow">Changes to this site or these terms</p>
+        <h2>We may update either</h2>
+    </div>
+    <p>We may add, change, or remove features, and we may update these terms as the site evolves. Meaningful changes will be reflected by updating the "last updated" date at the top of this page. Continuing to use the site after a change means you accept the updated terms.</p>
+</section>
+
+<section class="panel panel--accent">
+    <p class="eyebrow">Questions</p>
+    <h2>Contact us</h2>
+    {% if contact_email %}
+    <p>Reach out at <a href="mailto:{{ contact_email }}">{{ contact_email }}</a> with any questions about these terms.</p>
+    {% else %}
+    <p>Reach out through the email address listed on our Community and Resources pages with any questions about these terms.</p>
+    {% endif %}
+    <p class="hint-text">This page is provided for transparency and is not a substitute for legal advice. If you need terms tailored to specific legal requirements in your jurisdiction, consider having them reviewed by a professional.</p>
+</section>
+{% endblock %}

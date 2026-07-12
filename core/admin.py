@@ -3,8 +3,9 @@ from django.contrib import admin
 from .models import (
     Challenge,
     CommunityItem,
-    EmailSubscriber,
+    CommunityPost,
     EmailOnboardingDelivery,
+    EmailSubscriber,
     EngagementEvent,
     Lesson,
     Module,
@@ -65,6 +66,20 @@ class CommunityItemAdmin(admin.ModelAdmin):
     list_filter = ('is_published',)
     search_fields = ('title', 'description')
     ordering = ('display_order',)
+
+
+@admin.register(CommunityPost)
+class CommunityPostAdmin(admin.ModelAdmin):
+    list_display = ('user', 'post_type', 'is_approved', 'created_at')
+    list_filter = ('post_type', 'is_approved', 'created_at')
+    search_fields = ('body', 'user__email', 'user__username')
+    ordering = ('-created_at',)
+    actions = ['approve_posts']
+
+    @admin.action(description='Approve selected posts')
+    def approve_posts(self, request, queryset):
+        updated = queryset.update(is_approved=True)
+        self.message_user(request, f'{updated} post(s) approved.')
 
 
 @admin.register(Resource)

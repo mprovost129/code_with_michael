@@ -1,9 +1,14 @@
+import random
+from datetime import timedelta
+
 from django.db.models import Count, Q
+from django.utils import timezone
 
 from . import content
 from .models import (
     Challenge,
     CommunityItem,
+    CommunityPost,
     EngagementEvent,
     Lesson,
     Module,
@@ -44,6 +49,19 @@ def get_lesson(slug):
     if lesson is not None:
         return lesson
     return content.get_lesson(slug)
+
+
+def build_shuffled_quiz(quiz):
+    shuffled = []
+    for item in quiz or []:
+        options = list(enumerate(item.get('options', [])))
+        random.shuffle(options)
+        shuffled.append({
+            'question': item.get('question', ''),
+            'options': options,
+            'explanation': item.get('explanation', ''),
+        })
+    return shuffled
 
 
 def get_lesson_practice_challenge(lesson):
@@ -184,10 +202,44 @@ def get_community_items():
     return content.COMMUNITY_ITEMS
 
 
+def get_community_posts(limit=20):
+    return list(
+        CommunityPost.objects.filter(is_approved=True)
+        .select_related('user')
+        .order_by('-created_at')[:limit]
+    )
+
+
 def get_resources():
     if _published_exists(Resource):
         return list(Resource.objects.filter(is_published=True).order_by('display_order', 'id'))
     return content.RESOURCES
+
+
+def search_content(query):
+    query = (query or '').strip().lower()
+    if not query:
+        return {'lessons': [], 'challenges': [], 'projects': []}
+
+    def matches(*texts):
+        return any(query in (text or '').lower() for text in texts)
+
+    def field(item, name):
+        return item.get(name, '') if isinstance(item, dict) else getattr(item, name, '')
+
+    lessons = [
+        lesson for lesson in get_lessons()
+        if matches(field(lesson, 'title'), field(lesson, 'summary'), field(lesson, 'goal'))
+    ]
+    challenges = [
+        challenge for challenge in get_challenges()
+        if matches(field(challenge, 'title'), field(challenge, 'prompt'))
+    ]
+    projects = [
+        project for project in get_projects()
+        if matches(field(project, 'title'), field(project, 'description'))
+    ]
+    return {'lessons': lessons, 'challenges': challenges, 'projects': projects}
 
 
 def get_engagement_summary():
@@ -205,6 +257,36 @@ def get_engagement_summary():
             'id',
             filter=Q(event_type=EngagementEvent.EVENT_CODE_RUN, metadata__status='error'),
         ),
+        affiliate_clicks=Count('id', filter=Q(event_type=EngagementEvent.EVENT_AFFILIATE_CLICK)),
+        shop_cta_clicks=Count(
+            'id',
+            filter=Q(event_type=EngagementEvent.EVENT_AFFILIATE_CLICK, metadata__link_type='shop_cta'),
+        ),
+        ai_usage_total=Count('id', filter=Q(event_type=EngagementEvent.EVENT_AI_USAGE)),
+        ai_usage_success=Count(
+            'id',
+            filter=Q(event_type=EngagementEvent.EVENT_AI_USAGE, metadata__outcome='success'),
+        ),
+        ai_usage_rate_limited=Count(
+            'id',
+            filter=Q(event_type=EngagementEvent.EVENT_AI_USAGE, metadata__outcome='rate_limited'),
+        ),
+        ai_usage_errors=Count(
+            'id',
+            filter=Q(event_type=EngagementEvent.EVENT_AI_USAGE, metadata__outcome='error'),
+        ),
+    )
+
+    ai_usage_breakdown = list(
+        events.filter(event_type=EngagementEvent.EVENT_AI_USAGE)
+        .values('metadata__feature')
+        .annotate(
+            uses=Count('id'),
+            successes=Count('id', filter=Q(metadata__outcome='success')),
+            rate_limited=Count('id', filter=Q(metadata__outcome='rate_limited')),
+            errors=Count('id', filter=Q(metadata__outcome='error')),
+        )
+        .order_by('-uses')
     )
 
     lesson_breakdown = list(
@@ -241,11 +323,123 @@ def get_engagement_summary():
         .order_by('-code_runs', '-lesson_views', 'module__number', 'display_order')[:10]
     )
 
+    resource_click_breakdown = list(
+        events.filter(event_type=EngagementEvent.EVENT_AFFILIATE_CLICK)
+        .exclude(metadata__resource_title__isnull=True)
+        .values('metadata__resource_title')
+        .annotate(
+            clicks=Count('id'),
+            buy_clicks=Count('id', filter=Q(metadata__link_type='buy')),
+            details_clicks=Count('id', filter=Q(metadata__link_type='details')),
+        )
+        .order_by('-clicks')[:10]
+    )
+
     recent_events = list(events.order_by('-created_at', '-id')[:12])
     return {
         'totals': totals,
         'lesson_breakdown': lesson_breakdown,
+        'resource_click_breakdown': resource_click_breakdown,
+        'ai_usage_breakdown': ai_usage_breakdown,
         'recent_events': recent_events,
+    }
+
+
+def _activity_streaks(activity_dates):
+    if not activity_dates:
+        return 0, 0
+
+    sorted_dates = sorted(activity_dates)
+    longest_streak = 1
+    run = 1
+    for previous_date, current_date in zip(sorted_dates, sorted_dates[1:]):
+        run = run + 1 if (current_date - previous_date).days == 1 else 1
+        longest_streak = max(longest_streak, run)
+
+    today = timezone.localtime(timezone.now()).date()
+    cursor = today if today in activity_dates else today - timedelta(days=1)
+    current_streak = 0
+    while cursor in activity_dates:
+        current_streak += 1
+        cursor -= timedelta(days=1)
+
+    return current_streak, longest_streak
+
+
+def get_streak_and_badges(user):
+    lesson_progress = UserLessonProgress.objects.filter(user=user)
+    challenge_progress = UserChallengeProgress.objects.filter(user=user)
+
+    completed_lessons = lesson_progress.filter(is_completed=True).count()
+    completed_challenges = challenge_progress.filter(is_completed=True).count()
+    total_lessons = Lesson.objects.filter(is_published=True).count() or len(content.LESSONS)
+    total_challenges = Challenge.objects.filter(is_published=True).count() or len(content.CHALLENGES)
+    perfect_quiz = lesson_progress.filter(best_quiz_score=100).exists()
+
+    activity_dates = set()
+    for value in lesson_progress.exclude(completed_at=None).values_list('completed_at', flat=True):
+        activity_dates.add(timezone.localtime(value).date())
+    for value in challenge_progress.exclude(completed_at=None).values_list('completed_at', flat=True):
+        activity_dates.add(timezone.localtime(value).date())
+
+    current_streak, longest_streak = _activity_streaks(activity_dates)
+
+    badges = [
+        {
+            'key': 'first_lesson',
+            'label': 'First Steps',
+            'description': 'Complete your first lesson.',
+            'earned': completed_lessons >= 1,
+        },
+        {
+            'key': 'halfway_lessons',
+            'label': 'Halfway There',
+            'description': 'Complete half of the published lessons.',
+            'earned': total_lessons > 0 and completed_lessons >= (total_lessons + 1) // 2,
+        },
+        {
+            'key': 'all_lessons',
+            'label': 'Lesson Master',
+            'description': 'Complete every published lesson.',
+            'earned': total_lessons > 0 and completed_lessons >= total_lessons,
+        },
+        {
+            'key': 'first_challenge',
+            'label': 'Challenge Accepted',
+            'description': 'Complete your first practice challenge.',
+            'earned': completed_challenges >= 1,
+        },
+        {
+            'key': 'all_challenges',
+            'label': 'Challenge Crusher',
+            'description': 'Complete every published challenge.',
+            'earned': total_challenges > 0 and completed_challenges >= total_challenges,
+        },
+        {
+            'key': 'quiz_ace',
+            'label': 'Quiz Ace',
+            'description': 'Score 100% on a lesson quiz.',
+            'earned': perfect_quiz,
+        },
+        {
+            'key': 'three_day_streak',
+            'label': '3-Day Streak',
+            'description': 'Complete a lesson or challenge 3 days in a row.',
+            'earned': longest_streak >= 3,
+        },
+        {
+            'key': 'seven_day_streak',
+            'label': '7-Day Streak',
+            'description': 'Complete a lesson or challenge 7 days in a row.',
+            'earned': longest_streak >= 7,
+        },
+    ]
+
+    return {
+        'current_streak': current_streak,
+        'longest_streak': longest_streak,
+        'badges': badges,
+        'earned_badge_count': sum(1 for badge in badges if badge['earned']),
     }
 
 

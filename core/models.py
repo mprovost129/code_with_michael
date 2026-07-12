@@ -118,7 +118,7 @@ class Resource(OrderedContentModel):
     url = models.URLField()
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default=CATEGORY_OTHER)
     cta_label = models.CharField(max_length=50, default='View')
-    image_url = models.URLField(blank=True)
+    image = models.ImageField(upload_to='resources/', blank=True)
     best_for = models.CharField(max_length=100, blank=True, help_text='Shown as "Best for: <value>", e.g. "Beginner Programmers".')
     tags = models.JSONField(default=list, blank=True)
     details_url = models.URLField(blank=True, help_text='Optional link to a longer write-up. Leave blank to hide the Details button.')
@@ -128,16 +128,41 @@ class Resource(OrderedContentModel):
         return self.title
 
 
+class CommunityPost(models.Model):
+    TYPE_SHOUTOUT = 'shoutout'
+    TYPE_QUESTION = 'question'
+    TYPE_CHOICES = (
+        (TYPE_SHOUTOUT, 'Shoutout'),
+        (TYPE_QUESTION, 'Question'),
+    )
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='community_posts')
+    post_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=TYPE_SHOUTOUT)
+    body = models.TextField(max_length=1000)
+    is_approved = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ('-created_at', '-id')
+
+    def __str__(self):
+        return f'{self.user} - {self.get_post_type_display()}'
+
+
 class EngagementEvent(models.Model):
     EVENT_LESSON_VIEW = 'lesson_view'
     EVENT_CODE_RUN = 'code_run'
     EVENT_QUIZ_VIEW = 'quiz_view'
     EVENT_PAGE_VIEW = 'page_view'
+    EVENT_AFFILIATE_CLICK = 'affiliate_click'
+    EVENT_AI_USAGE = 'ai_usage'
     EVENT_CHOICES = (
         (EVENT_LESSON_VIEW, 'Lesson view'),
         (EVENT_CODE_RUN, 'Code run'),
         (EVENT_QUIZ_VIEW, 'Quiz view'),
         (EVENT_PAGE_VIEW, 'Page view'),
+        (EVENT_AFFILIATE_CLICK, 'Affiliate click'),
+        (EVENT_AI_USAGE, 'AI usage'),
     )
 
     event_type = models.CharField(max_length=32, choices=EVENT_CHOICES)

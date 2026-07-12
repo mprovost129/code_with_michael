@@ -20,6 +20,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.sitemaps',
     # Third-party
     'axes',
     # Local
@@ -63,6 +64,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'core.context_processors.analytics',
             ],
         },
     },
@@ -159,3 +161,18 @@ EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'webmaster@localhost')
 MARKETING_CONTACT_EMAIL = os.environ.get('MARKETING_CONTACT_EMAIL', '')
 SITE_BASE_URL = os.environ.get('SITE_BASE_URL', 'http://127.0.0.1:8000')
+
+# AI tutor (Claude API)
+ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
+
+# Google Analytics (GA4). Leave blank to disable tracking entirely.
+GA_MEASUREMENT_ID = os.environ.get('GA_MEASUREMENT_ID', '')
+
+# reCAPTCHA (Google Cloud Fraud Defense / reCAPTCHA Enterprise). All three
+# must be set to enable verification; leave blank to disable (requests are
+# allowed through unverified). See docs/recaptcha_setup.md for the Google
+# Cloud console steps needed to obtain these values.
+RECAPTCHA_SITE_KEY = os.environ.get('RECAPTCHA_SITE_KEY', '')
+RECAPTCHA_SECRET_KEY = os.environ.get('RECAPTCHA_SECRET_KEY', '')
+RECAPTCHA_PROJECT_ID = os.environ.get('RECAPTCHA_PROJECT_ID', '')
+RECAPTCHA_MIN_SCORE = float(os.environ.get('RECAPTCHA_MIN_SCORE', '0.5'))

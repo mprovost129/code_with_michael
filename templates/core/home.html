@@ -32,6 +32,35 @@ print("You can do this.")</pre>
     </div>
 </section>
 
+{% if user.is_authenticated %}
+<section class="panel panel--accent">
+    <p class="eyebrow">Pick up where you left off</p>
+    {% if continue_lesson %}
+    <h2>{{ continue_lesson.lesson.title }}</h2>
+    <p>You are partway through this lesson. Keep the streak alive and finish it.</p>
+    <div class="button-row">
+        <a class="button button--primary" href="{% url 'core:lesson_detail' continue_lesson.lesson.slug %}">Continue Lesson</a>
+        {% if continue_lesson_challenge %}
+        <a class="button button--ghost" href="{% url 'core:challenge_detail' continue_lesson_challenge.slug %}">Open Paired Challenge</a>
+        {% endif %}
+    </div>
+    {% elif recommended_next_lesson %}
+    <h2>{{ recommended_next_lesson.title }}</h2>
+    <p>Ready for your next lesson? This one is next in the beginner path.</p>
+    <div class="button-row">
+        <a class="button button--primary" href="{% url 'core:lesson_detail' recommended_next_lesson.slug %}">Start Next Lesson</a>
+        {% if recommended_next_challenge %}
+        <a class="button button--ghost" href="{% url 'core:challenge_detail' recommended_next_challenge.slug %}">See Matching Challenge</a>
+        {% endif %}
+    </div>
+    {% else %}
+    <h2>You are caught up on the current path.</h2>
+    <p>Check My Progress for a full breakdown, or explore Challenges and Projects for more practice.</p>
+    <a class="button button--primary" href="{% url 'core:my_progress' %}">View My Progress</a>
+    {% endif %}
+</section>
+{% endif %}
+
 <section class="section-grid">
     {% for feature in features %}
     <article class="info-card">
@@ -122,7 +151,7 @@ print("You can do this.")</pre>
             <p class="eyebrow">Stay in the loop</p>
             <h2>Join the beginner list</h2>
         </div>
-        <form method="post" class="email-signup-form">
+        <form method="post" class="email-signup-form" data-recaptcha-action="email_signup">
             {% csrf_token %}
             {{ email_subscriber_form.as_p }}
             <button type="submit">Join Free Email List</button>

@@ -90,7 +90,7 @@
         </div>
     </article>
 
-    <article class="panel panel--editor" data-python-runner data-lesson-slug="{{ lesson.slug }}">
+    <article class="panel panel--editor" data-python-runner data-lesson-slug="{{ lesson.slug }}" data-hint-title="{{ lesson.title }}" data-hint-goal="{{ lesson.goal }}">
         <div class="editor-toolbar">
             <div>
                 <p class="editor-toolbar__label">Runnable code</p>
@@ -102,13 +102,18 @@
         <label class="visually-hidden" for="lesson-code">Python code editor</label>
         <textarea id="lesson-code" class="code-editor" data-python-source>{{ lesson.starter_code }}</textarea>
 
+        <label class="editor-stdin__label" for="lesson-stdin">Sample input (optional, one value per line, used if your code calls input())</label>
+        <textarea id="lesson-stdin" class="editor-stdin" data-python-stdin rows="2" placeholder="e.g. Michael"></textarea>
+
         <div class="editor-output">
             <div class="editor-output__meta">
                 <span>Output</span>
                 <button class="button button--ghost button--small" type="button" data-reset-python>Reset</button>
+                <button class="button button--ghost button--small" type="button" data-ai-hint data-hint-url="{% url 'core:ai_code_hint' %}">Get a Hint</button>
             </div>
             <pre data-python-output>{{ lesson.expected_output }}</pre>
         </div>
+        <p class="ai-hint" data-ai-hint-output hidden></p>
         <p class="editor-note">Pyodide loads only on this page. On phones, learners can still read the lesson and copy the code later if the editor feels cramped.</p>
     </article>
 </section>
@@ -136,26 +141,30 @@
     <form method="post" action="{% url 'core:lesson_quiz_submit' lesson.slug %}">
         {% csrf_token %}
         <div class="quiz-grid" data-track-view="quiz_view" data-lesson-slug="{{ lesson.slug }}">
-        {% for item in lesson.quiz %}
-        <article class="panel quiz-card">
+        {% for item in shuffled_quiz %}
+        <article class="panel quiz-card" data-quiz-question data-lesson-slug="{{ lesson.slug }}" data-question-index="{{ forloop.counter0 }}">
             <p class="quiz-card__question">{{ item.question }}</p>
             <ol class="quiz-card__options">
-                {% for option in item.options %}
+                {% for original_index, option in item.options %}
                 <li>
                     <label>
-                        <input type="radio" name="question_{{ forloop.parentloop.counter0 }}" value="{{ forloop.counter0 }}">
+                        <input type="radio" name="question_{{ forloop.parentloop.counter0 }}" value="{{ original_index }}">
                         {{ option }}
                     </label>
                 </li>
                 {% endfor %}
             </ol>
             <p class="quiz-card__explanation">{{ item.explanation }}</p>
+            <button class="button button--ghost button--small" type="button" data-ai-quiz-explain data-explain-url="{% url 'core:ai_quiz_explain' %}">Explain This Answer</button>
+            <p class="quiz-card__ai-explanation" data-ai-quiz-explanation hidden></p>
         </article>
         {% endfor %}
         </div>
         <button class="button button--primary" type="submit">Score Quiz</button>
     </form>
 </section>
+
+{% include 'partials/tutor_chat.html' %}
 
 <section class="panel">
     <p class="eyebrow">Keep going</p>

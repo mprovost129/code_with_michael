@@ -35,6 +35,26 @@
         <span class="stat-card__label">Errored Runs</span>
         <strong>{{ totals.failed_runs|default:0 }}</strong>
     </article>
+    <article class="stat-card">
+        <span class="stat-card__label">Affiliate Clicks</span>
+        <strong>{{ totals.affiliate_clicks|default:0 }}</strong>
+    </article>
+    <article class="stat-card">
+        <span class="stat-card__label">Shop CTA Clicks</span>
+        <strong>{{ totals.shop_cta_clicks|default:0 }}</strong>
+    </article>
+    <article class="stat-card">
+        <span class="stat-card__label">AI Uses</span>
+        <strong>{{ totals.ai_usage_total|default:0 }}</strong>
+    </article>
+    <article class="stat-card">
+        <span class="stat-card__label">AI Rate-Limited</span>
+        <strong>{{ totals.ai_usage_rate_limited|default:0 }}</strong>
+    </article>
+    <article class="stat-card">
+        <span class="stat-card__label">AI Errors</span>
+        <strong>{{ totals.ai_usage_errors|default:0 }}</strong>
+    </article>
 </section>
 
 <section class="two-column">
@@ -93,5 +113,74 @@
         <p>No events have been recorded yet.</p>
         {% endif %}
     </article>
+</section>
+
+<section class="panel">
+    <div class="section-heading">
+        <p class="eyebrow">Affiliate breakdown</p>
+        <h2>Which resources get clicked</h2>
+    </div>
+    {% if resource_click_breakdown %}
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Resource</th>
+                    <th>Total Clicks</th>
+                    <th>Buy Clicks</th>
+                    <th>Details Clicks</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in resource_click_breakdown %}
+                <tr>
+                    <td>{{ row.metadata__resource_title }}</td>
+                    <td>{{ row.clicks }}</td>
+                    <td>{{ row.buy_clicks }}</td>
+                    <td>{{ row.details_clicks }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p>No affiliate clicks recorded yet. Once visitors click a resource link, the breakdown will appear here.</p>
+    {% endif %}
+</section>
+
+<section class="panel">
+    <div class="section-heading">
+        <p class="eyebrow">AI usage breakdown</p>
+        <h2>Demand and cost signal per AI feature</h2>
+    </div>
+    {% if ai_usage_breakdown %}
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Feature</th>
+                    <th>Total Uses</th>
+                    <th>Successes</th>
+                    <th>Rate-Limited</th>
+                    <th>Errors</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in ai_usage_breakdown %}
+                <tr>
+                    <td>{{ row.metadata__feature }}</td>
+                    <td>{{ row.uses }}</td>
+                    <td>{{ row.successes }}</td>
+                    <td>{{ row.rate_limited }}</td>
+                    <td>{{ row.errors }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p class="hint-text">"Rate-limited" counts requests blocked by the per-session hourly cap &mdash; a rising number here means real demand is bumping into the limit, which is your signal to revisit pricing or the cap itself.</p>
+    {% else %}
+    <p>No AI usage recorded yet. Once visitors use a hint, quiz explanation, or the tutor chat, the breakdown will appear here.</p>
+    {% endif %}
 </section>
 {% endblock %}

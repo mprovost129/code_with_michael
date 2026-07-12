@@ -1,3 +1,4 @@
+anthropic==0.116.0
 asgiref==3.11.1
 cfgv==3.5.0
 colorama==0.4.6
@@ -6,12 +7,15 @@ Django==6.0.3
 django-axes==8.3.1
 django-debug-toolbar==6.3.0
 django-redis==6.0.0
+django-storages[s3]==2023.11.0
 filelock==3.25.2
 gunicorn==25.3.0
+httpx==0.28.1
 identify==2.6.18
 iniconfig==2.3.0
 nodeenv==1.10.0
 packaging==26.0
+Pillow==12.3.0
 platformdirs==4.9.4
 pluggy==1.6.0
 pre_commit==4.5.1

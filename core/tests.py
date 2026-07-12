@@ -1,21 +1,28 @@
-from django.contrib.auth import get_user_model
 import json
+from datetime import timedelta
+from unittest.mock import patch
 
+from django.contrib.auth import get_user_model
 from django.core import mail
-from django.test import Client, TestCase
+from django.core.cache import cache
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
 from core.models import (
     Challenge,
+    CommunityPost,
     EmailOnboardingDelivery,
     EmailSubscriber,
     EngagementEvent,
     Lesson,
     Module,
+    Project,
+    Resource,
     UserChallengeProgress,
     UserLessonProgress,
 )
+from core.services import build_shuffled_quiz, get_streak_and_badges, search_content
 
 
 class EngagementEventCreateViewTests(TestCase):
@@ -78,6 +85,73 @@ class EngagementEventCreateViewTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertFalse(EngagementEvent.objects.exists())
+
+    def test_explicit_null_page_path_does_not_crash(self):
+        response = self.client.post(
+            reverse('core:engagement_event_create'),
+            data=json.dumps({
+                'event_type': EngagementEvent.EVENT_PAGE_VIEW,
+                'page_path': None,
+                'metadata': {},
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        event = EngagementEvent.objects.get()
+        self.assertEqual(event.page_path, '')
+
+    def test_creates_affiliate_click_event_with_resource_metadata(self):
+        response = self.client.post(
+            reverse('core:engagement_event_create'),
+            data=json.dumps({
+                'event_type': EngagementEvent.EVENT_AFFILIATE_CLICK,
+                'page_path': '/resources/',
+                'metadata': {
+                    'resource_id': 1,
+                    'resource_title': 'Python Crash Course',
+                    'category': 'amazon',
+                    'link_type': 'buy',
+                },
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        event = EngagementEvent.objects.get()
+        self.assertEqual(event.event_type, EngagementEvent.EVENT_AFFILIATE_CLICK)
+        self.assertEqual(event.metadata['resource_title'], 'Python Crash Course')
+        self.assertEqual(event.metadata['link_type'], 'buy')
+
+    def test_endpoint_is_csrf_exempt_for_sendbeacon_tracking(self):
+        # sendBeacon cannot attach custom headers, so the CSRF token can't be
+        # sent as X-CSRFToken. This endpoint must stay CSRF-exempt or
+        # same-tab CTA click tracking silently breaks.
+        strict_client = Client(enforce_csrf_checks=True)
+
+        response = strict_client.post(
+            reverse('core:engagement_event_create'),
+            data=json.dumps({
+                'event_type': EngagementEvent.EVENT_AFFILIATE_CLICK,
+                'metadata': {'link_type': 'shop_cta', 'source': 'navbar'},
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(EngagementEvent.objects.filter(event_type=EngagementEvent.EVENT_AFFILIATE_CLICK).exists())
+
+    @patch('core.views.check_rate_limit', return_value=True)
+    def test_rate_limited_requests_are_rejected(self, mock_check_rate_limit):
+        response = self.client.post(
+            reverse('core:engagement_event_create'),
+            data=json.dumps({'event_type': EngagementEvent.EVENT_PAGE_VIEW}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 429)
+        self.assertFalse(EngagementEvent.objects.exists())
+        mock_check_rate_limit.assert_called_once_with(response.wsgi_request, 'engagement_event', limit=300, window_seconds=3600)
 
 
 class HomeEmailSubscriberTests(TestCase):
@@ -210,6 +284,40 @@ class InsightsViewTests(TestCase):
         self.assertEqual(response.context['totals']['successful_runs'], 1)
         self.assertEqual(response.context['totals']['failed_runs'], 1)
         self.assertEqual(response.context['lesson_breakdown'][0].title, self.lesson.title)
+
+    def test_insights_shows_affiliate_click_breakdown(self):
+        EngagementEvent.objects.create(
+            event_type=EngagementEvent.EVENT_AFFILIATE_CLICK,
+            page_path='/resources/',
+            session_key='abc123',
+            metadata={'resource_title': 'Python Crash Course', 'link_type': 'buy'},
+        )
+        EngagementEvent.objects.create(
+            event_type=EngagementEvent.EVENT_AFFILIATE_CLICK,
+            page_path='/resources/',
+            session_key='abc123',
+            metadata={'resource_title': 'Python Crash Course', 'link_type': 'details'},
+        )
+        EngagementEvent.objects.create(
+            event_type=EngagementEvent.EVENT_AFFILIATE_CLICK,
+            page_path='/',
+            session_key='abc123',
+            metadata={'link_type': 'shop_cta', 'source': 'navbar'},
+        )
+
+        self.client.force_login(self.staff_user)
+        response = self.client.get(reverse('core:insights'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['totals']['affiliate_clicks'], 3)
+        self.assertEqual(response.context['totals']['shop_cta_clicks'], 1)
+        breakdown = response.context['resource_click_breakdown']
+        self.assertEqual(len(breakdown), 1)
+        self.assertEqual(breakdown[0]['metadata__resource_title'], 'Python Crash Course')
+        self.assertEqual(breakdown[0]['clicks'], 2)
+        self.assertEqual(breakdown[0]['buy_clicks'], 1)
+        self.assertEqual(breakdown[0]['details_clicks'], 1)
+        self.assertContains(response, 'Python Crash Course')
 
 
 class UserLessonProgressTests(TestCase):
@@ -551,6 +659,20 @@ class UserLessonProgressTests(TestCase):
 
         self.assertRedirects(response, reverse('core:challenge_detail', args=[self.challenge.slug]))
 
+    def test_challenge_progress_rejects_offsite_next_redirect(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse('core:challenge_progress_update', args=[self.challenge.id]),
+            data={
+                'action': 'save',
+                'response_text': 'print("Keep working")',
+                'next': 'https://evil.example.com/phishing',
+            },
+        )
+
+        self.assertRedirects(response, reverse('core:challenges'))
+
     def test_challenge_autosave_updates_response_text(self):
         self.client.force_login(self.user)
 
@@ -651,3 +773,1133 @@ class UserLessonProgressTests(TestCase):
         response = self.client.get(reverse('core:my_progress'))
 
         self.assertEqual(response.status_code, 302)
+
+    def test_my_progress_does_not_leak_other_users_data(self):
+        other_user = get_user_model().objects.create_user(
+            email='other-learner@example.com',
+            username='other_learner',
+            password='testpass123',
+        )
+        UserLessonProgress.objects.create(
+            user=other_user,
+            lesson=self.lesson,
+            is_completed=True,
+            quiz_passed_at=timezone.now(),
+        )
+        UserChallengeProgress.objects.create(
+            user=other_user,
+            challenge=self.challenge,
+            is_completed=True,
+            response_text="other user's private notes",
+        )
+
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('core:my_progress'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['completed_lessons'], 0)
+        self.assertEqual(response.context['completed_challenges'], 0)
+        self.assertNotContains(response, "other user's private notes")
+
+    def test_marking_complete_does_not_alter_another_users_progress(self):
+        other_user = get_user_model().objects.create_user(
+            email='other-learner@example.com',
+            username='other_learner',
+            password='testpass123',
+        )
+        other_progress = UserLessonProgress.objects.create(
+            user=other_user,
+            lesson=self.lesson,
+            is_completed=False,
+        )
+
+        self.client.force_login(self.user)
+        self.client.post(
+            reverse('core:lesson_progress_update', args=[self.lesson.slug]),
+            data={'action': 'complete'},
+            follow=True,
+        )
+
+        other_progress.refresh_from_db()
+        self.assertFalse(other_progress.is_completed)
+        my_progress = UserLessonProgress.objects.get(user=self.user, lesson=self.lesson)
+        self.assertTrue(my_progress.is_completed)
+
+    def test_challenge_autosave_does_not_alter_another_users_progress(self):
+        other_user = get_user_model().objects.create_user(
+            email='other-learner@example.com',
+            username='other_learner',
+            password='testpass123',
+        )
+        other_progress = UserChallengeProgress.objects.create(
+            user=other_user,
+            challenge=self.challenge,
+            response_text="other user's original notes",
+        )
+
+        self.client.force_login(self.user)
+        self.client.post(
+            reverse('core:challenge_autosave', args=[self.challenge.id]),
+            data=json.dumps({'response_text': "attacker's overwrite attempt"}),
+            content_type='application/json',
+        )
+
+        other_progress.refresh_from_db()
+        self.assertEqual(other_progress.response_text, "other user's original notes")
+        my_progress = UserChallengeProgress.objects.get(user=self.user, challenge=self.challenge)
+        self.assertEqual(my_progress.response_text, "attacker's overwrite attempt")
+
+
+class CommunityPostFeatureTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = get_user_model().objects.create_user(
+            email='learner@example.com',
+            username='learner_one',
+            password='testpass123',
+        )
+
+    def test_anonymous_visitor_sees_signup_cta_instead_of_form(self):
+        response = self.client.get(reverse('core:community'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Create a free account')
+        self.assertNotContains(response, 'Post to Community')
+
+    def test_anonymous_post_is_rejected(self):
+        response = self.client.post(
+            reverse('core:community'),
+            data={'post_type': CommunityPost.TYPE_SHOUTOUT, 'body': 'Anonymous spam'},
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(CommunityPost.objects.exists())
+
+    def test_authenticated_user_can_submit_a_post(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse('core:community'),
+            data={'post_type': CommunityPost.TYPE_QUESTION, 'body': 'Why does print() need parentheses?'},
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        post = CommunityPost.objects.get()
+        self.assertEqual(post.user, self.user)
+        self.assertEqual(post.body, 'Why does print() need parentheses?')
+        self.assertFalse(post.is_approved)
+
+    def test_invalid_submission_rerenders_form_with_errors(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse('core:community'),
+            data={'post_type': CommunityPost.TYPE_SHOUTOUT, 'body': ''},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(CommunityPost.objects.exists())
+        self.assertTrue(response.context['community_post_form'].errors)
+
+    def test_unapproved_post_is_hidden_from_public_feed(self):
+        CommunityPost.objects.create(
+            user=self.user,
+            post_type=CommunityPost.TYPE_SHOUTOUT,
+            body='Not approved yet',
+            is_approved=False,
+        )
+
+        response = self.client.get(reverse('core:community'))
+
+        self.assertNotContains(response, 'Not approved yet')
+
+    def test_approved_post_appears_in_public_feed(self):
+        CommunityPost.objects.create(
+            user=self.user,
+            post_type=CommunityPost.TYPE_SHOUTOUT,
+            body='Finished my first challenge!',
+            is_approved=True,
+        )
+
+        response = self.client.get(reverse('core:community'))
+
+        self.assertContains(response, 'Finished my first challenge!')
+
+    def test_rate_limit_blocks_after_threshold(self):
+        self.client.force_login(self.user)
+
+        for _ in range(5):
+            response = self.client.post(
+                reverse('core:community'),
+                data={'post_type': CommunityPost.TYPE_SHOUTOUT, 'body': 'Another shoutout'},
+                follow=True,
+            )
+            self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(CommunityPost.objects.count(), 5)
+
+        response = self.client.post(
+            reverse('core:community'),
+            data={'post_type': CommunityPost.TYPE_SHOUTOUT, 'body': 'One too many'},
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(CommunityPost.objects.count(), 5)
+        self.assertContains(response, 'posted a lot')
+
+
+class SearchFeatureTests(TestCase):
+    def setUp(self):
+        self.module = Module.objects.create(
+            number=1,
+            slug='first-steps',
+            title='First Steps',
+            duration='10 min',
+            goal='Learn the basics.',
+            topics=['print()'],
+            is_published=True,
+        )
+        self.lesson = Lesson.objects.create(
+            module=self.module,
+            slug='print-basics',
+            title='Your First Python Output',
+            summary='Run print() for the first time.',
+            duration='8 min',
+            goal='Use print().',
+            explanation='Explain print.',
+            starter_code='print("Hello")',
+            try_it='Change the text.',
+            common_mistake='Missing quote.',
+            mini_challenge='Add one line.',
+            expected_output='Hello',
+            practice_challenge_slug='',
+            quiz=[],
+            is_published=True,
+            display_order=1,
+        )
+        self.challenge = Challenge.objects.create(
+            slug='warm-up-greeting',
+            title='Warm-up Greeting',
+            difficulty='Beginner',
+            prompt='Write two loops that print a greeting.',
+            hint='Use two print calls.',
+            starter_code='print("Hello")',
+            expected_output='Hello',
+            success_checks=[],
+            reflection_prompt='',
+            is_published=True,
+            display_order=1,
+        )
+        self.project = Project.objects.create(
+            title='Budget Tracker',
+            description='Store categories in variables or lists and summarize spending.',
+            is_published=True,
+            display_order=1,
+        )
+
+    def test_search_matches_lesson_by_title(self):
+        results = search_content('python output')
+
+        self.assertIn(self.lesson, results['lessons'])
+
+    def test_search_matches_challenge_by_prompt(self):
+        results = search_content('loops that print')
+
+        self.assertIn(self.challenge, results['challenges'])
+
+    def test_search_matches_project_by_description(self):
+        results = search_content('summarize spending')
+
+        self.assertIn(self.project, results['projects'])
+
+    def test_search_is_case_insensitive(self):
+        results = search_content('PYTHON OUTPUT')
+
+        self.assertIn(self.lesson, results['lessons'])
+
+    def test_empty_query_returns_no_results(self):
+        results = search_content('')
+
+        self.assertEqual(results, {'lessons': [], 'challenges': [], 'projects': []})
+
+    def test_search_view_renders_result_count(self):
+        response = self.client.get(reverse('core:search'), {'q': 'python output'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Your First Python Output')
+
+    def test_search_view_shows_no_results_message(self):
+        response = self.client.get(reverse('core:search'), {'q': 'zzz_nonexistent_topic_zzz'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'No results for')
+
+
+class StreakAndBadgeTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            email='learner@example.com',
+            username='learner_one',
+            password='testpass123',
+        )
+        self.module = Module.objects.create(
+            number=1,
+            slug='first-steps',
+            title='First Steps',
+            duration='10 min',
+            goal='Learn the basics.',
+            topics=['print()'],
+            is_published=True,
+        )
+        self.lesson = Lesson.objects.create(
+            module=self.module,
+            slug='print-basics',
+            title='Print Basics',
+            summary='Learn print.',
+            duration='8 min',
+            goal='Use print().',
+            explanation='Explain print.',
+            starter_code='print("Hello")',
+            try_it='Change the text.',
+            common_mistake='Missing quote.',
+            mini_challenge='Add one line.',
+            expected_output='Hello',
+            practice_challenge_slug='',
+            quiz=[],
+            is_published=True,
+            display_order=1,
+        )
+
+    def test_no_activity_has_zero_streak_and_no_badges(self):
+        result = get_streak_and_badges(self.user)
+
+        self.assertEqual(result['current_streak'], 0)
+        self.assertEqual(result['longest_streak'], 0)
+        self.assertEqual(result['earned_badge_count'], 0)
+
+    def test_completing_a_lesson_today_earns_first_lesson_badge(self):
+        Lesson.objects.create(
+            module=self.module,
+            slug='second-lesson',
+            title='Second Lesson',
+            summary='Practice more.',
+            duration='5 min',
+            goal='Practice.',
+            explanation='Practice.',
+            starter_code='print(2)',
+            try_it='Try it.',
+            common_mistake='None.',
+            mini_challenge='None.',
+            expected_output='2',
+            practice_challenge_slug='',
+            quiz=[],
+            is_published=True,
+            display_order=2,
+        )
+        UserLessonProgress.objects.create(
+            user=self.user,
+            lesson=self.lesson,
+            is_completed=True,
+            completed_at=timezone.now(),
+        )
+
+        result = get_streak_and_badges(self.user)
+
+        self.assertEqual(result['current_streak'], 1)
+        badge_map = {badge['key']: badge['earned'] for badge in result['badges']}
+        self.assertTrue(badge_map['first_lesson'])
+        self.assertFalse(badge_map['all_lessons'])
+
+    def test_three_consecutive_days_earns_three_day_streak_badge(self):
+        now = timezone.now()
+        for offset in (2, 1, 0):
+            module = Module.objects.create(
+                number=offset + 10,
+                slug=f'module-{offset}',
+                title=f'Module {offset}',
+                duration='5 min',
+                goal='Practice.',
+                topics=[],
+                is_published=True,
+            )
+            lesson = Lesson.objects.create(
+                module=module,
+                slug=f'lesson-{offset}',
+                title=f'Lesson {offset}',
+                summary='Practice.',
+                duration='5 min',
+                goal='Practice.',
+                explanation='Practice.',
+                starter_code='print(1)',
+                try_it='Try it.',
+                common_mistake='None.',
+                mini_challenge='None.',
+                expected_output='1',
+                practice_challenge_slug='',
+                quiz=[],
+                is_published=True,
+                display_order=offset,
+            )
+            UserLessonProgress.objects.create(
+                user=self.user,
+                lesson=lesson,
+                is_completed=True,
+                completed_at=now - timedelta(days=offset),
+            )
+
+        result = get_streak_and_badges(self.user)
+
+        self.assertEqual(result['current_streak'], 3)
+        self.assertEqual(result['longest_streak'], 3)
+        badge_map = {badge['key']: badge['earned'] for badge in result['badges']}
+        self.assertTrue(badge_map['three_day_streak'])
+        self.assertFalse(badge_map['seven_day_streak'])
+
+    def test_gap_in_activity_breaks_current_streak(self):
+        now = timezone.now()
+        module = Module.objects.create(
+            number=99,
+            slug='old-module',
+            title='Old Module',
+            duration='5 min',
+            goal='Practice.',
+            topics=[],
+            is_published=True,
+        )
+        old_lesson = Lesson.objects.create(
+            module=module,
+            slug='old-lesson',
+            title='Old Lesson',
+            summary='Practice.',
+            duration='5 min',
+            goal='Practice.',
+            explanation='Practice.',
+            starter_code='print(1)',
+            try_it='Try it.',
+            common_mistake='None.',
+            mini_challenge='None.',
+            expected_output='1',
+            practice_challenge_slug='',
+            quiz=[],
+            is_published=True,
+            display_order=1,
+        )
+        UserLessonProgress.objects.create(
+            user=self.user,
+            lesson=old_lesson,
+            is_completed=True,
+            completed_at=now - timedelta(days=5),
+        )
+
+        result = get_streak_and_badges(self.user)
+
+        self.assertEqual(result['current_streak'], 0)
+        self.assertEqual(result['longest_streak'], 1)
+
+    def test_perfect_quiz_score_earns_quiz_ace_badge(self):
+        UserLessonProgress.objects.create(
+            user=self.user,
+            lesson=self.lesson,
+            best_quiz_score=100,
+        )
+
+        result = get_streak_and_badges(self.user)
+
+        badge_map = {badge['key']: badge['earned'] for badge in result['badges']}
+        self.assertTrue(badge_map['quiz_ace'])
+
+    def test_my_progress_page_shows_streak_and_badges(self):
+        self.client.force_login(self.user)
+        UserLessonProgress.objects.create(
+            user=self.user,
+            lesson=self.lesson,
+            is_completed=True,
+            completed_at=timezone.now(),
+        )
+
+        response = self.client.get(reverse('core:my_progress'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Streak')
+        self.assertContains(response, 'Badges')
+        self.assertEqual(response.context['current_streak'], 1)
+
+
+class ResourcesFeatureTests(TestCase):
+    def test_published_resource_appears_on_page(self):
+        Resource.objects.create(
+            title='Python Crash Course',
+            description='A great beginner book.',
+            url='https://amazon.com/example',
+            category=Resource.CATEGORY_AMAZON,
+            cta_label='Check Price on Amazon',
+            is_published=True,
+            display_order=1,
+        )
+
+        response = self.client.get(reverse('core:resources'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Python Crash Course')
+        self.assertContains(response, 'Check Price on Amazon')
+
+    def test_unpublished_resource_is_hidden(self):
+        Resource.objects.create(
+            title='Draft Resource',
+            description='Not ready yet.',
+            url='https://example.com',
+            is_published=False,
+            display_order=1,
+        )
+
+        response = self.client.get(reverse('core:resources'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'Draft Resource')
+
+    def test_resources_page_shows_empty_state_with_no_resources(self):
+        response = self.client.get(reverse('core:resources'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Recommendations are coming soon.')
+
+
+class AiCodeHintViewTests(TestCase):
+    def setUp(self):
+        cache.clear()
+
+    def tearDown(self):
+        cache.clear()
+
+    @patch('core.ai._complete', return_value='Try checking your quotes.')
+    def test_returns_hint_for_valid_code(self, mock_complete):
+        response = self.client.post(
+            reverse('core:ai_code_hint'),
+            data=json.dumps({
+                'title': 'Print Basics',
+                'goal': 'Use print().',
+                'code': 'print("Hello"',
+                'output': 'SyntaxError',
+                'is_error': True,
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['ok'])
+        self.assertEqual(data['hint'], 'Try checking your quotes.')
+        mock_complete.assert_called_once()
+
+    def test_rejects_empty_code(self):
+        response = self.client.post(
+            reverse('core:ai_code_hint'),
+            data=json.dumps({'code': '   '}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(response.json()['ok'])
+
+    def test_rejects_invalid_json(self):
+        response = self.client.post(
+            reverse('core:ai_code_hint'),
+            data='not json',
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    @patch('core.ai._complete', return_value='A hint.')
+    def test_rate_limit_blocks_after_threshold(self, mock_complete):
+        for _ in range(10):
+            response = self.client.post(
+                reverse('core:ai_code_hint'),
+                data=json.dumps({'code': 'print(1)'}),
+                content_type='application/json',
+            )
+            self.assertEqual(response.status_code, 200)
+
+        blocked_response = self.client.post(
+            reverse('core:ai_code_hint'),
+            data=json.dumps({'code': 'print(1)'}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(blocked_response.status_code, 429)
+
+    @patch('core.ai._complete', return_value='Try checking your quotes.')
+    def test_success_creates_ai_usage_event(self, mock_complete):
+        self.client.post(
+            reverse('core:ai_code_hint'),
+            data=json.dumps({'code': 'print("Hello"'}),
+            content_type='application/json',
+        )
+
+        event = EngagementEvent.objects.get(event_type=EngagementEvent.EVENT_AI_USAGE)
+        self.assertEqual(event.metadata['feature'], 'code_hint')
+        self.assertEqual(event.metadata['outcome'], 'success')
+
+    @patch('core.ai.get_client', side_effect=Exception('API down'))
+    def test_ai_failure_tracks_error_outcome(self, mock_get_client):
+        from core.ai import FALLBACK_MESSAGE
+
+        response = self.client.post(
+            reverse('core:ai_code_hint'),
+            data=json.dumps({'code': 'print(1)'}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.json()['hint'], FALLBACK_MESSAGE)
+        event = EngagementEvent.objects.get(event_type=EngagementEvent.EVENT_AI_USAGE)
+        self.assertEqual(event.metadata['outcome'], 'error')
+
+    def test_rate_limited_request_tracks_rate_limited_outcome(self):
+        for _ in range(10):
+            with patch('core.ai._complete', return_value='A hint.'):
+                self.client.post(
+                    reverse('core:ai_code_hint'),
+                    data=json.dumps({'code': 'print(1)'}),
+                    content_type='application/json',
+                )
+
+        self.client.post(
+            reverse('core:ai_code_hint'),
+            data=json.dumps({'code': 'print(1)'}),
+            content_type='application/json',
+        )
+
+        self.assertTrue(
+            EngagementEvent.objects.filter(
+                event_type=EngagementEvent.EVENT_AI_USAGE,
+                metadata__outcome='rate_limited',
+            ).exists()
+        )
+
+
+class AiQuizExplainViewTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.module = Module.objects.create(
+            number=1,
+            slug='first-steps',
+            title='First Steps',
+            duration='10 min',
+            goal='Learn the basics.',
+            topics=[],
+            is_published=True,
+        )
+        self.lesson = Lesson.objects.create(
+            module=self.module,
+            slug='variables-basics',
+            title='Variables Basics',
+            summary='Learn variables.',
+            duration='10 min',
+            goal='Use variables.',
+            explanation='Explain variables.',
+            starter_code='name = "Michael"',
+            try_it='Change the name.',
+            common_mistake='Using a variable before assigning it.',
+            mini_challenge='Create two variables.',
+            expected_output='Michael',
+            practice_challenge_slug='',
+            quiz=[
+                {
+                    'question': 'What is a variable?',
+                    'options': ['A named place to store a value.', 'A loop.', 'An error message.'],
+                    'answer': 0,
+                    'explanation': 'Variables store values with names.',
+                },
+            ],
+            is_published=True,
+            display_order=1,
+        )
+
+    def tearDown(self):
+        cache.clear()
+
+    @patch('core.ai._complete', return_value='Because a variable stores a value under a name.')
+    def test_returns_explanation_for_valid_question(self, mock_complete):
+        response = self.client.post(
+            reverse('core:ai_quiz_explain'),
+            data=json.dumps({
+                'lesson_slug': self.lesson.slug,
+                'question_index': 0,
+                'selected_answer': 1,
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['ok'])
+        self.assertEqual(data['explanation'], 'Because a variable stores a value under a name.')
+        mock_complete.assert_called_once()
+
+    def test_rejects_unknown_question_index(self):
+        response = self.client.post(
+            reverse('core:ai_quiz_explain'),
+            data=json.dumps({'lesson_slug': self.lesson.slug, 'question_index': 99}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_rejects_unknown_lesson(self):
+        response = self.client.post(
+            reverse('core:ai_quiz_explain'),
+            data=json.dumps({'lesson_slug': 'does-not-exist', 'question_index': 0}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+
+class AiTutorChatViewTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.module = Module.objects.create(
+            number=1,
+            slug='first-steps',
+            title='First Steps',
+            duration='10 min',
+            goal='Learn the basics.',
+            topics=[],
+            is_published=True,
+        )
+        self.lesson = Lesson.objects.create(
+            module=self.module,
+            slug='print-basics',
+            title='Print Basics',
+            summary='Learn print.',
+            duration='8 min',
+            goal='Use print().',
+            explanation='Explain print.',
+            starter_code='print("Hello")',
+            try_it='Change the text.',
+            common_mistake='Missing quote.',
+            mini_challenge='Add one line.',
+            expected_output='Hello',
+            practice_challenge_slug='',
+            quiz=[],
+            is_published=True,
+            display_order=1,
+        )
+
+    def tearDown(self):
+        cache.clear()
+
+    @patch('core.ai._complete', return_value='print() displays text on the screen.')
+    def test_returns_reply_for_valid_message(self, mock_complete):
+        response = self.client.post(
+            reverse('core:ai_tutor_chat'),
+            data=json.dumps({
+                'lesson_slug': self.lesson.slug,
+                'message': 'What does print() do?',
+                'history': [],
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['ok'])
+        self.assertEqual(data['reply'], 'print() displays text on the screen.')
+        mock_complete.assert_called_once()
+
+    def test_rejects_empty_message(self):
+        response = self.client.post(
+            reverse('core:ai_tutor_chat'),
+            data=json.dumps({'lesson_slug': self.lesson.slug, 'message': ''}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    @patch('core.ai._complete', return_value='reply')
+    def test_ignores_malformed_history(self, mock_complete):
+        response = self.client.post(
+            reverse('core:ai_tutor_chat'),
+            data=json.dumps({
+                'lesson_slug': self.lesson.slug,
+                'message': 'Hello',
+                'history': 'not-a-list',
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        mock_complete.assert_called_once()
+
+
+class HomeRecommendedNextWidgetTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            email='learner@example.com',
+            username='learner_one',
+            password='testpass123',
+        )
+        self.module = Module.objects.create(
+            number=1,
+            slug='first-steps',
+            title='First Steps',
+            duration='10 min',
+            goal='Learn the basics.',
+            topics=[],
+            is_published=True,
+        )
+        self.lesson = Lesson.objects.create(
+            module=self.module,
+            slug='print-basics',
+            title='Print Basics',
+            summary='Learn print.',
+            duration='8 min',
+            goal='Use print().',
+            explanation='Explain print.',
+            starter_code='print("Hello")',
+            try_it='Change the text.',
+            common_mistake='Missing quote.',
+            mini_challenge='Add one line.',
+            expected_output='Hello',
+            practice_challenge_slug='',
+            quiz=[],
+            is_published=True,
+            display_order=1,
+        )
+
+    def test_anonymous_visitor_does_not_see_widget(self):
+        response = self.client.get(reverse('core:home'))
+
+        self.assertNotContains(response, 'Pick up where you left off')
+
+    def test_new_authenticated_user_sees_start_next_lesson(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('core:home'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Pick up where you left off')
+        self.assertContains(response, 'Start Next Lesson')
+
+    def test_user_with_progress_sees_continue_lesson(self):
+        self.client.force_login(self.user)
+        UserLessonProgress.objects.create(
+            user=self.user,
+            lesson=self.lesson,
+            is_completed=False,
+        )
+
+        response = self.client.get(reverse('core:home'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Continue Lesson')
+        self.assertContains(response, self.lesson.title)
+
+
+class NavigationContextTests(TestCase):
+    def test_navbar_includes_primary_and_more_links(self):
+        response = self.client.get(reverse('core:home'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Start Here')
+        self.assertContains(response, 'Tips')
+        self.assertContains(response, 'Community')
+
+
+class BootstrapLearningContentCommandTests(TestCase):
+    def test_seeds_published_lessons_and_unpublished_drafts(self):
+        from django.core.management import call_command
+
+        call_command('bootstrap_learning_content')
+
+        self.assertTrue(Lesson.objects.filter(slug='print-basics', is_published=True).exists())
+        self.assertTrue(Lesson.objects.filter(slug='getting-user-input', is_published=False).exists())
+
+
+RECAPTCHA_ENABLED_SETTINGS = {
+    'RECAPTCHA_SITE_KEY': 'test-site-key',
+    'RECAPTCHA_SECRET_KEY': 'test-api-key',
+    'RECAPTCHA_PROJECT_ID': 'test-project',
+    'RECAPTCHA_MIN_SCORE': 0.5,
+}
+
+
+class RecaptchaVerificationTests(TestCase):
+    def test_unconfigured_allows_through_without_a_token(self):
+        from core.recaptcha import verify_recaptcha
+
+        self.assertTrue(verify_recaptcha('', 'any_action'))
+
+    @override_settings(**RECAPTCHA_ENABLED_SETTINGS)
+    def test_configured_rejects_missing_token(self):
+        from core.recaptcha import verify_recaptcha
+
+        self.assertFalse(verify_recaptcha('', 'email_signup'))
+
+    @override_settings(**RECAPTCHA_ENABLED_SETTINGS)
+    @patch('core.recaptcha.httpx.post')
+    def test_configured_accepts_valid_high_score_token(self, mock_post):
+        from core.recaptcha import verify_recaptcha
+
+        mock_post.return_value.raise_for_status.return_value = None
+        mock_post.return_value.json.return_value = {
+            'tokenProperties': {'valid': True, 'action': 'email_signup'},
+            'riskAnalysis': {'score': 0.9},
+        }
+
+        self.assertTrue(verify_recaptcha('good-token', 'email_signup'))
+
+    @override_settings(**RECAPTCHA_ENABLED_SETTINGS)
+    @patch('core.recaptcha.httpx.post')
+    def test_configured_rejects_low_score_token(self, mock_post):
+        from core.recaptcha import verify_recaptcha
+
+        mock_post.return_value.raise_for_status.return_value = None
+        mock_post.return_value.json.return_value = {
+            'tokenProperties': {'valid': True, 'action': 'email_signup'},
+            'riskAnalysis': {'score': 0.1},
+        }
+
+        self.assertFalse(verify_recaptcha('bot-token', 'email_signup'))
+
+    @override_settings(**RECAPTCHA_ENABLED_SETTINGS)
+    @patch('core.recaptcha.httpx.post')
+    def test_configured_rejects_mismatched_action(self, mock_post):
+        from core.recaptcha import verify_recaptcha
+
+        mock_post.return_value.raise_for_status.return_value = None
+        mock_post.return_value.json.return_value = {
+            'tokenProperties': {'valid': True, 'action': 'some_other_action'},
+            'riskAnalysis': {'score': 0.9},
+        }
+
+        self.assertFalse(verify_recaptcha('token', 'email_signup'))
+
+    @override_settings(**RECAPTCHA_ENABLED_SETTINGS)
+    @patch('core.recaptcha.httpx.post')
+    def test_configured_rejects_invalid_token(self, mock_post):
+        from core.recaptcha import verify_recaptcha
+
+        mock_post.return_value.raise_for_status.return_value = None
+        mock_post.return_value.json.return_value = {
+            'tokenProperties': {'valid': False},
+        }
+
+        self.assertFalse(verify_recaptcha('expired-token', 'email_signup'))
+
+    @override_settings(**RECAPTCHA_ENABLED_SETTINGS)
+    @patch('core.recaptcha.httpx.post', side_effect=Exception('network down'))
+    def test_fails_open_when_google_api_unreachable(self, mock_post):
+        from core.recaptcha import verify_recaptcha
+
+        self.assertTrue(verify_recaptcha('token', 'email_signup'))
+
+
+class RecaptchaIntegrationTests(TestCase):
+    def setUp(self):
+        cache.clear()
+
+    def tearDown(self):
+        cache.clear()
+
+    @override_settings(**RECAPTCHA_ENABLED_SETTINGS)
+    @patch('core.views.verify_recaptcha', return_value=False)
+    def test_email_signup_blocked_when_recaptcha_fails(self, mock_verify):
+        response = self.client.post(
+            reverse('core:home'),
+            data={'email': 'bot@example.com', 'first_name': 'Bot'},
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(EmailSubscriber.objects.filter(email='bot@example.com').exists())
+
+    @override_settings(**RECAPTCHA_ENABLED_SETTINGS)
+    @patch('core.views.verify_recaptcha', return_value=False)
+    @patch('core.ai._complete', return_value='A hint.')
+    def test_ai_code_hint_blocked_when_recaptcha_fails(self, mock_complete, mock_verify):
+        response = self.client.post(
+            reverse('core:ai_code_hint'),
+            data=json.dumps({'code': 'print(1)', 'recaptcha_token': 'bad'}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 403)
+        mock_complete.assert_not_called()
+
+
+class TermsOfServiceViewTests(TestCase):
+    def test_page_renders_with_expected_sections(self):
+        response = self.client.get(reverse('core:terms_of_service'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Terms of Service')
+        self.assertContains(response, 'AI tutor features')
+        self.assertContains(response, 'Community posts')
+
+    def test_footer_links_to_privacy_and_terms(self):
+        response = self.client.get(reverse('core:home'))
+
+        self.assertContains(response, reverse('core:privacy_policy'))
+        self.assertContains(response, reverse('core:terms_of_service'))
+
+
+class CustomErrorPageTests(TestCase):
+    @override_settings(DEBUG=False, ALLOWED_HOSTS=['testserver'])
+    def test_404_page_renders_custom_template(self):
+        response = self.client.get('/this-page-does-not-exist/')
+
+        self.assertEqual(response.status_code, 404)
+        self.assertContains(response, 'This page took a wrong turn', status_code=404)
+        self.assertContains(response, 'Back to Home', status_code=404)
+
+    @override_settings(DEBUG=False, ALLOWED_HOSTS=['testserver'])
+    def test_500_page_renders_custom_template(self):
+        from django.template import loader
+
+        rendered = loader.render_to_string('500.html')
+
+        self.assertIn('Something broke on our end', rendered)
+        self.assertIn('Back to Home', rendered)
+
+
+class QuizShuffleTests(TestCase):
+    def test_shuffled_options_keep_their_original_index(self):
+        quiz = [
+            {
+                'question': 'Which is a string?',
+                'options': ['5', '"5"', 'True'],
+                'answer': 1,
+                'explanation': 'Quoted values are strings.',
+            },
+        ]
+
+        for _ in range(20):
+            shuffled = build_shuffled_quiz(quiz)
+            self.assertEqual(len(shuffled), 1)
+            options = shuffled[0]['options']
+            self.assertEqual({idx for idx, _ in options}, {0, 1, 2})
+            for original_index, text in options:
+                self.assertEqual(quiz[0]['options'][original_index], text)
+            self.assertEqual(shuffled[0]['question'], 'Which is a string?')
+            self.assertEqual(shuffled[0]['explanation'], 'Quoted values are strings.')
+
+    def test_option_order_is_not_always_identical(self):
+        quiz = [{'question': 'Q', 'options': ['A', 'B', 'C', 'D', 'E'], 'answer': 0, 'explanation': ''}]
+
+        orders = {tuple(idx for idx, _ in build_shuffled_quiz(quiz)[0]['options']) for _ in range(30)}
+
+        self.assertGreater(len(orders), 1, 'Expected option order to vary across renders')
+
+    def test_empty_quiz_returns_empty_list(self):
+        self.assertEqual(build_shuffled_quiz([]), [])
+        self.assertEqual(build_shuffled_quiz(None), [])
+
+    def test_lesson_detail_renders_shuffled_options_with_correct_values(self):
+        module = Module.objects.create(
+            number=1,
+            slug='first-steps',
+            title='First Steps',
+            duration='10 min',
+            goal='Learn the basics.',
+            topics=['print()'],
+            is_published=True,
+        )
+        Lesson.objects.create(
+            module=module,
+            slug='print-basics',
+            title='Print Basics',
+            summary='Learn print.',
+            duration='8 min',
+            goal='Use print().',
+            explanation='Explain print.',
+            starter_code='print("Hello")',
+            try_it='Change the text.',
+            common_mistake='Missing quote.',
+            mini_challenge='Add one line.',
+            expected_output='Hello',
+            quiz=[
+                {
+                    'question': 'What does print() do?',
+                    'options': ['Deletes a file', 'Displays output', 'Runs a loop'],
+                    'answer': 1,
+                    'explanation': 'print() displays output.',
+                },
+            ],
+            is_published=True,
+            display_order=1,
+        )
+
+        response = self.client.get(reverse('core:lesson_detail', args=['print-basics']))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'value="1"')
+        self.assertContains(response, 'Displays output')
+
+
+class CurriculumContentIntegrityTests(TestCase):
+    """Guards against regressions in the beginner-friendly lesson/module/challenge order.
+
+    These check core.content directly (not the DB) so they catch mistakes
+    at authoring time, before `bootstrap_learning_content` ever runs.
+    """
+
+    def setUp(self):
+        from core import content
+        self.content = content
+        self.module_number_by_slug = {m['slug']: m['number'] for m in content.MODULES}
+        self.lessons_in_order = sorted(
+            content.LESSONS,
+            key=lambda lesson: (self.module_number_by_slug[lesson['module_slug']], content.LESSONS.index(lesson)),
+        )
+        self.lesson_position = {lesson['slug']: index for index, lesson in enumerate(self.lessons_in_order)}
+
+    def test_module_numbers_are_unique_and_sequential(self):
+        numbers = [m['number'] for m in self.content.MODULES]
+        self.assertEqual(len(numbers), len(set(numbers)))
+        self.assertEqual(sorted(numbers), list(range(1, len(numbers) + 1)))
+
+    def test_every_lesson_references_a_real_module(self):
+        for lesson in self.content.LESSONS + self.content.DRAFT_LESSONS:
+            self.assertIn(
+                lesson['module_slug'], self.module_number_by_slug,
+                f"{lesson['slug']} references a module that doesn't exist",
+            )
+
+    def test_every_practice_challenge_is_paired_with_exactly_one_lesson(self):
+        challenge_slugs = {c['slug'] for c in self.content.CHALLENGES}
+        pairings = {}
+        for lesson in self.content.LESSONS:
+            slug = lesson.get('practice_challenge_slug')
+            if not slug:
+                continue
+            self.assertIn(slug, challenge_slugs, f"{lesson['slug']} references a missing challenge")
+            pairings.setdefault(slug, []).append(lesson['slug'])
+
+        shared = {slug: lessons for slug, lessons in pairings.items() if len(lessons) > 1}
+        self.assertEqual(shared, {}, f'Challenges reused across multiple lessons: {shared}')
+
+    def test_lists_are_taught_before_loops_which_are_taught_before_tuples_and_sets(self):
+        self.assertLess(self.lesson_position['lists-and-dictionaries-basics'], self.lesson_position['loops-in-action'])
+        self.assertLess(self.lesson_position['loops-in-action'], self.lesson_position['tuples-and-sets'])
+
+    def test_booleans_are_taught_before_multi_branch_conditionals(self):
+        self.assertLess(self.lesson_position['booleans-and-choices'], self.lesson_position['conditionals-basics'])
+
+    def test_data_type_mix_up_challenge_does_not_require_booleans(self):
+        challenge = next(c for c in self.content.CHALLENGES if c['slug'] == 'data-type-mix-up')
+        combined_text = challenge['prompt'] + challenge['starter_code']
+        self.assertNotIn('bool', combined_text.lower())
+        self.assertNotIn('True', challenge['starter_code'])
+
+    def test_booleans_and_choices_challenge_does_not_require_elif(self):
+        challenge = next(c for c in self.content.CHALLENGES if c['slug'] == 'boolean-checkpoint')
+        self.assertNotIn('elif', challenge['starter_code'])
+
+    def test_loops_in_action_challenge_does_not_require_tuple_syntax(self):
+        challenge = next(c for c in self.content.CHALLENGES if c['slug'] == 'loop-through-a-list')
+        self.assertNotIn('(', challenge['starter_code'].split('=', 1)[1].split('\n')[0])
+        self.assertIn('[', challenge['starter_code'])

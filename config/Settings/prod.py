@@ -8,12 +8,29 @@ ALLOWED_HOSTS = os.environ['ALLOWED_HOSTS'].split(',')
 # Whitenoise — insert after SecurityMiddleware
 MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
 
+AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME', '')
+AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID', '')
+AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY', '')
+
+_s3_bucket = AWS_STORAGE_BUCKET_NAME
+_s3_configured = bool(AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY and AWS_STORAGE_BUCKET_NAME)
+
 STORAGES = {
     'default': {
+        'BACKEND': 'storages.backends.s3boto3.S3Boto3Storage',
+        'OPTIONS': {
+            'bucket_name': _s3_bucket,
+            'region_name': os.environ.get('AWS_S3_REGION_NAME', 'us-east-1'),
+            'location': 'media',
+            'file_overwrite': False,
+            'default_acl': None,
+            'object_parameters': {'CacheControl': 'max-age=86400'},
+        },
+    } if _s3_configured else {
         'BACKEND': 'django.core.files.storage.FileSystemStorage',
     },
     'staticfiles': {
-        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+        'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
     },
 }
 

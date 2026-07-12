@@ -22,4 +22,10 @@ urlpatterns = [
     path('tips/', views.TipsView.as_view(), name='tips'),
     path('community/', views.CommunityView.as_view(), name='community'),
     path('resources/', views.ResourcesView.as_view(), name='resources'),
+    path('search/', views.SearchView.as_view(), name='search'),
+    path('ai/code-hint/', views.AiCodeHintView.as_view(), name='ai_code_hint'),
+    path('ai/quiz-explain/', views.AiQuizExplainView.as_view(), name='ai_quiz_explain'),
+    path('ai/tutor-chat/', views.AiTutorChatView.as_view(), name='ai_tutor_chat'),
+    path('privacy/', views.PrivacyPolicyView.as_view(), name='privacy_policy'),
+    path('terms/', views.TermsOfServiceView.as_view(), name='terms_of_service'),
 ]

@@ -13,8 +13,8 @@
 <section class="resource-grid">
     {% for resource in resources %}
     <article class="info-card resource-card">
-        {% if resource.image_url %}
-        <img class="resource-card__image" src="{{ resource.image_url }}" alt="{{ resource.title }}" loading="lazy">
+        {% if resource.image %}
+        <img class="resource-card__image" src="{{ resource.image.url }}" alt="{{ resource.title }}" loading="lazy">
         {% endif %}
         <p class="info-card__eyebrow">{{ resource.get_category_display }}</p>
         <h2>{{ resource.title }}</h2>
@@ -31,9 +31,21 @@
         {% endif %}
         <div class="resource-card__actions">
             {% if resource.details_url %}
-            <a class="button button--ghost button--small" href="{{ resource.details_url }}">Details</a>
+            <a
+                class="button button--ghost button--small"
+                href="{{ resource.details_url }}"
+                data-track-click="affiliate_click"
+                data-track-metadata='{"resource_id": {{ resource.id|default:"null" }}, "resource_title": "{{ resource.title|escapejs }}", "link_type": "details"}'
+            >Details</a>
             {% endif %}
-            <a class="button button--primary button--small" href="{{ resource.url }}" target="_blank" rel="nofollow sponsored noopener">{{ resource.cta_label }}</a>
+            <a
+                class="button button--primary button--small"
+                href="{{ resource.url }}"
+                target="_blank"
+                rel="nofollow sponsored noopener"
+                data-track-click="affiliate_click"
+                data-track-metadata='{"resource_id": {{ resource.id|default:"null" }}, "resource_title": "{{ resource.title|escapejs }}", "category": "{{ resource.category|escapejs }}", "link_type": "buy"}'
+            >{{ resource.cta_label }}</a>
         </div>
     </article>
     {% empty %}

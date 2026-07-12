@@ -1,7 +1,7 @@
 SITE_STATS = {
     'followers': '4,500+',
     'lesson_count': 10,
-    'challenge_count': 8,
+    'challenge_count': 10,
     'quiz_count': 5,
 }
 
@@ -32,9 +32,18 @@ NAV_PAGES = [
     {'title': 'Lessons', 'url_name': 'core:lessons', 'description': 'Short concepts with examples, challenges, and quizzes.'},
     {'title': 'Challenges', 'url_name': 'core:challenges', 'description': 'Practice cards with hints and expected output.'},
     {'title': 'Projects', 'url_name': 'core:projects', 'description': 'Mini builds that combine multiple beginner skills.'},
+]
+
+NAV_PAGES_MORE = [
     {'title': 'Tips', 'url_name': 'core:tips', 'description': 'Quick wins and common-mistake fixes from your social content.'},
     {'title': 'Community', 'url_name': 'core:community', 'description': 'Weekly prompts and learner shoutouts connected to your audience.'},
-    {'title': 'Resources', 'url_name': 'core:resources', 'description': 'Recommended tools, courses, and gear for learning Python.'},
+]
+
+# TODO: replace with your real profile URLs.
+SOCIAL_LINKS = [
+    {'label': 'Facebook', 'icon': 'bi-facebook', 'url': 'https://www.facebook.com/profile.php?id=61589092320241'},
+    {'label': 'Instagram', 'icon': 'bi-instagram', 'url': 'https://www.instagram.com/code_with_michael/'},
+    {'label': 'Threads', 'icon': 'bi-threads', 'url': 'https://www.threads.com/@code_with_michael'},
 ]
 
 MODULES = [
@@ -43,8 +52,8 @@ MODULES = [
         'slug': 'first-steps',
         'title': 'First Steps',
         'duration': '10 min',
-        'goal': 'Understand what Python is, run your first code, and learn what print() does.',
-        'topics': ['What Python is', 'print()', 'comments', 'common beginner mistakes'],
+        'goal': 'Run your first Python code and learn what print() does.',
+        'topics': ['print()', 'common beginner mistakes'],
     },
     {
         'number': 2,
@@ -52,7 +61,7 @@ MODULES = [
         'title': 'Variables and Data Types',
         'duration': '12 min',
         'goal': 'Store text and numbers in variables and use names that make sense.',
-        'topics': ['strings', 'numbers', 'booleans', 'type conversion'],
+        'topics': ['variables', 'strings', 'f-strings', 'integers and floats'],
     },
     {
         'number': 3,
@@ -60,34 +69,26 @@ MODULES = [
         'title': 'Input and Output',
         'duration': '12 min',
         'goal': 'Collect user input and format friendly responses with f-strings.',
-        'topics': ['input()', 'f-strings', 'simple calculators', 'formatted output'],
+        'topics': ['input()', 'converting text to numbers', 'f-strings with input'],
     },
     {
         'number': 4,
         'slug': 'decisions',
         'title': 'Decisions',
         'duration': '14 min',
-        'goal': 'Choose different actions with if, elif, and else.',
-        'topics': ['if', 'elif', 'else', 'comparison operators'],
+        'goal': 'Understand booleans, then choose different actions with if, elif, and else.',
+        'topics': ['booleans', 'if', 'elif', 'else', 'comparison operators'],
     },
     {
         'number': 5,
-        'slug': 'repetition',
-        'title': 'Repetition',
-        'duration': '14 min',
-        'goal': 'Repeat code with for loops, while loops, and range().',
-        'topics': ['for loops', 'while loops', 'range()', 'loop mistakes'],
+        'slug': 'collections-and-loops',
+        'title': 'Collections and Loops',
+        'duration': '40 min',
+        'goal': 'Store values in lists, dictionaries, tuples, and sets, then use loops to work through them.',
+        'topics': ['lists', 'dictionaries', 'indexing', 'for loops', 'tuples', 'sets'],
     },
     {
         'number': 6,
-        'slug': 'lists-and-dictionaries',
-        'title': 'Lists and Dictionaries',
-        'duration': '15 min',
-        'goal': 'Work with collections of values and loop through them.',
-        'topics': ['lists', 'dictionaries', 'indexing', 'append'],
-    },
-    {
-        'number': 7,
         'slug': 'functions',
         'title': 'Functions',
         'duration': '15 min',
@@ -95,28 +96,28 @@ MODULES = [
         'topics': ['def', 'parameters', 'return', 'reuse'],
     },
     {
-        'number': 8,
+        'number': 7,
         'slug': 'debugging-basics',
         'title': 'Debugging Basics',
         'duration': '12 min',
         'goal': 'Read errors calmly and use print debugging to find what changed.',
-        'topics': ['tracebacks', 'print debugging', 'indentation', 'syntax mistakes'],
+        'topics': ['tracebacks', 'print debugging', 'TypeError'],
     },
     {
-        'number': 9,
+        'number': 8,
         'slug': 'mini-projects',
         'title': 'Mini Projects',
         'duration': '20 min',
-        'goal': 'Combine multiple concepts into useful beginner projects.',
-        'topics': ['guessing game', 'tip calculator', 'quiz game', 'budget tracker'],
+        'goal': 'Combine input, conditionals, and f-strings into one small, complete program.',
+        'topics': ['combining input and conditionals', 'planning in plain English', 'a simple budget program'],
     },
     {
-        'number': 10,
+        'number': 9,
         'slug': 'next-steps',
         'title': 'Next Steps',
         'duration': '10 min',
         'goal': 'Prepare to install Python locally and keep building after the browser lessons.',
-        'topics': ['local Python', 'VS Code', 'GitHub intro', 'portfolio ideas'],
+        'topics': ['installing Python locally', 'a code editor', 'running a .py file', 'choosing your next goal'],
     },
 ]
 
@@ -375,7 +376,7 @@ LESSONS = [
         'common_mistake': 'Python booleans are written as True and False with capital letters. Writing true or false causes an error because Python looks for variable names with those spellings.',
         'mini_challenge': 'Create a boolean called practiced_today. Use an if statement to print one encouraging message if it is True and another if it is False.',
         'expected_output': 'Great job finishing the lesson.\nYou are ready for the next step.',
-        'practice_challenge_slug': 'conditional-coach',
+        'practice_challenge_slug': 'boolean-checkpoint',
         'quiz': [
             {
                 'question': 'Which option is a valid boolean value in Python?',
@@ -466,59 +467,8 @@ LESSONS = [
         ],
     },
     {
-        'slug': 'loops-in-action',
-        'module_slug': 'repetition',
-        'title': 'Loops in Action',
-        'summary': 'Use loops to repeat work cleanly instead of copying the same print statements over and over.',
-        'duration': '14 min',
-        'goal': 'By the end, you will know how a for loop repeats actions for each item in a group.',
-        'explanation': (
-            'Loops help you repeat work without writing the same line again and again. A for loop is perfect when you already have a group of items and want to do something with each one.\n\n'
-            'This makes your code shorter, cleaner, and easier to update later.'
-        ),
-        'starter_code': (
-            'practice_topics = ["variables", "strings", "loops"]\n'
-            '\n'
-            'for topic in practice_topics:\n'
-            '    print(f"Today I practiced: {topic}")'
-        ),
-        'try_it': 'Add one or two more topics to the list and run the loop again.\nThen change the sentence inside print() so it sounds more like your own voice.',
-        'common_mistake': 'A missing colon after the for line or bad indentation on the next line causes many beginner loop errors. If the loop is not working, check the colon and indentation first.',
-        'mini_challenge': 'Make a collection of three goals for the week and print each one with a for loop.',
-        'expected_output': 'Today I practiced: variables\nToday I practiced: strings\nToday I practiced: loops',
-        'practice_challenge_slug': 'tuple-to-loop',
-        'quiz': [
-            {
-                'question': 'Why use a loop?',
-                'options': [
-                    'To repeat an action for multiple items.',
-                    'To turn every value into a boolean.',
-                    'To replace all variables with strings.',
-                ],
-                'answer': 0,
-                'explanation': 'Loops save time and reduce repeated code.',
-            },
-            {
-                'question': 'What does `topic` represent in `for topic in practice_topics`?',
-                'options': [
-                    'The current item being processed in the loop.',
-                    'The whole list forever.',
-                    'A built-in Python keyword you cannot rename.',
-                ],
-                'answer': 0,
-                'explanation': 'The loop variable holds one item at a time as Python moves through the collection.',
-            },
-            {
-                'question': 'What punctuation is required at the end of a for loop line?',
-                'options': ['A colon', 'A comma', 'A semicolon'],
-                'answer': 0,
-                'explanation': 'Python uses a colon to begin the indented block for a loop.',
-            },
-        ],
-    },
-    {
         'slug': 'lists-and-dictionaries-basics',
-        'module_slug': 'lists-and-dictionaries',
+        'module_slug': 'collections-and-loops',
         'title': 'Lists and Dictionaries',
         'summary': 'Store grouped values in lists and pair labels with values in dictionaries.',
         'duration': '15 min',
@@ -579,8 +529,59 @@ LESSONS = [
         ],
     },
     {
+        'slug': 'loops-in-action',
+        'module_slug': 'collections-and-loops',
+        'title': 'Loops in Action',
+        'summary': 'Use loops to repeat work cleanly instead of copying the same print statements over and over.',
+        'duration': '14 min',
+        'goal': 'By the end, you will know how a for loop repeats actions for each item in a group.',
+        'explanation': (
+            'Loops help you repeat work without writing the same line again and again. A for loop is perfect when you already have a group of items and want to do something with each one.\n\n'
+            'This makes your code shorter, cleaner, and easier to update later.'
+        ),
+        'starter_code': (
+            'practice_topics = ["variables", "strings", "loops"]\n'
+            '\n'
+            'for topic in practice_topics:\n'
+            '    print(f"Today I practiced: {topic}")'
+        ),
+        'try_it': 'Add one or two more topics to the list and run the loop again.\nThen change the sentence inside print() so it sounds more like your own voice.',
+        'common_mistake': 'A missing colon after the for line or bad indentation on the next line causes many beginner loop errors. If the loop is not working, check the colon and indentation first.',
+        'mini_challenge': 'Make a collection of three goals for the week and print each one with a for loop.',
+        'expected_output': 'Today I practiced: variables\nToday I practiced: strings\nToday I practiced: loops',
+        'practice_challenge_slug': 'loop-through-a-list',
+        'quiz': [
+            {
+                'question': 'Why use a loop?',
+                'options': [
+                    'To repeat an action for multiple items.',
+                    'To turn every value into a boolean.',
+                    'To replace all variables with strings.',
+                ],
+                'answer': 0,
+                'explanation': 'Loops save time and reduce repeated code.',
+            },
+            {
+                'question': 'What does `topic` represent in `for topic in practice_topics`?',
+                'options': [
+                    'The current item being processed in the loop.',
+                    'The whole list forever.',
+                    'A built-in Python keyword you cannot rename.',
+                ],
+                'answer': 0,
+                'explanation': 'The loop variable holds one item at a time as Python moves through the collection.',
+            },
+            {
+                'question': 'What punctuation is required at the end of a for loop line?',
+                'options': ['A colon', 'A comma', 'A semicolon'],
+                'answer': 0,
+                'explanation': 'Python uses a colon to begin the indented block for a loop.',
+            },
+        ],
+    },
+    {
         'slug': 'tuples-and-sets',
-        'module_slug': 'lists-and-dictionaries',
+        'module_slug': 'collections-and-loops',
         'title': 'Tuples and Sets',
         'summary': 'Learn when to group fixed values in a tuple and when to use a set to keep only unique values.',
         'duration': '14 min',
@@ -602,7 +603,7 @@ LESSONS = [
         'try_it': 'Change the tuple to your own three favorite topics.\nThen add repeated items to the set and notice that duplicates do not stay there.',
         'common_mistake': 'Beginners sometimes expect sets to preserve duplicates or a predictable printed order. Sets focus on uniqueness, not on keeping repeated items.',
         'mini_challenge': 'Create a tuple of three goals for this month and a set of topics you have completed so far. Print both and explain what makes them different.',
-        'expected_output': "('variables', 'strings', 'functions')\n{'variables', 'strings', 'loops'}\nFavorite topic: variables\nFavorite topic: strings\nFavorite topic: functions",
+        'expected_output': "('variables', 'strings', 'functions')\n{'variables', 'strings', 'loops'} (the order of items in a set can vary, so yours may not match exactly)\nFavorite topic: variables\nFavorite topic: strings\nFavorite topic: functions",
         'practice_challenge_slug': 'tuple-to-loop',
         'quiz': [
             {
@@ -695,6 +696,202 @@ LESSONS = [
     },
 ]
 
+# Draft lessons awaiting review. These fill modules that currently have no
+# lessons at all (input-and-output, debugging-basics, mini-projects,
+# next-steps). They are seeded into the database as unpublished via
+# `manage.py bootstrap_learning_content` and only appear on the live site
+# once a reviewer flips is_published to True in Django admin.
+DRAFT_LESSONS = [
+    {
+        'slug': 'getting-user-input',
+        'module_slug': 'input-and-output',
+        'title': 'Getting Input from Users',
+        'summary': 'Use input() to collect what someone types and turn it into a personalized response.',
+        'duration': '10 min',
+        'goal': 'By the end, you will know how to use input() to collect text from a user and combine it with an f-string for a friendly response.',
+        'explanation': 'input() pauses your program and waits for someone to type something, then hands that text back to you as a string. Pair it with an f-string and a script that only ever prints the same thing can start responding to the person actually using it. Since this editor cannot show a real typing prompt, use the Sample input box below the code editor to supply the value input() will receive when you press Run.',
+        'starter_code': 'name = input("What is your name? ")\nprint(f"Nice to meet you, {name}!")',
+        'try_it': 'Type a name into the Sample input box below the editor and press Run. Then add a second input() that asks for a favorite hobby (add a second line to Sample input too) and include it in the printed message.',
+        'common_mistake': 'input() always returns a string, even when someone types a number. Trying to do math on it directly raises a TypeError. Convert it first with int() or float().',
+        'mini_challenge': 'Ask for someone\'s age with input(), convert it to an integer, and print how old they will be in 10 years.',
+        'expected_output': 'What is your name? Michael\nNice to meet you, Michael!',
+        'practice_challenge_slug': '',
+        'quiz': [
+            {
+                'question': 'What type of value does input() always return?',
+                'options': [
+                    'A string, even if the text looks like a number.',
+                    'Whatever type matches what the user typed.',
+                    'An integer.',
+                ],
+                'answer': 0,
+                'explanation': 'input() reads text from the keyboard and always hands it back as a string, no matter what was typed.',
+            },
+            {
+                'question': 'Why does this code raise an error?\nage = input("Age: ")\nnext_year = age + 1',
+                'options': [
+                    'You cannot add an integer to a string without converting first.',
+                    'input() only works with words.',
+                    'print() was left out.',
+                ],
+                'answer': 0,
+                'explanation': 'age is a string, so Python cannot add the integer 1 to it directly. Wrap it in int(age) first.',
+            },
+            {
+                'question': 'What does an f-string let you do?',
+                'options': [
+                    'Insert a variable\'s value directly inside a string using curly braces.',
+                    'Ask the user for input.',
+                    'Convert a string to a number.',
+                ],
+                'answer': 0,
+                'explanation': 'An f-string, written as f"...{variable}...", drops a variable\'s value straight into the text.',
+            },
+        ],
+    },
+    {
+        'slug': 'reading-errors-and-debugging',
+        'module_slug': 'debugging-basics',
+        'title': 'Reading Error Messages and Debugging',
+        'summary': 'Read a traceback calmly, find the real problem line, and use print() to see what your code is actually doing.',
+        'duration': '10 min',
+        'goal': 'By the end, you will know how to read a Python traceback and use print statements to track down what a program is doing before it breaks.',
+        'explanation': 'A traceback looks intimidating, but it is really just Python telling you exactly where it got stuck. Read it from the bottom up: the last line names the error type, and the line above it points to the exact line of your code that caused it. When the cause is not obvious, add a print() before the problem line to see what a variable actually holds at that moment.',
+        'starter_code': 'price = "12"\ntax = 0.08\ntotal = price + tax\nprint(f"Total: {total}")',
+        'try_it': 'Run the code, read the error at the bottom, then fix it by converting price to a float before adding tax.',
+        'common_mistake': 'It is tempting to only read the last line of a traceback. The last line names the error, but the line just above it points to exactly where to look in your own code.',
+        'mini_challenge': 'Add a print(type(price)) line right before the broken line so you can see the exact type causing the problem, then fix the bug.',
+        'expected_output': 'TypeError: can only concatenate str (not "float") to str\n\nThis error is expected: price is still text ("12"), so Python cannot add it to the tax number yet. Fix it by converting price to a float (float(price) + tax) and you will see: Total: 12.08',
+        'practice_challenge_slug': '',
+        'quiz': [
+            {
+                'question': 'When reading a Python traceback, where should you look first?',
+                'options': [
+                    'The last line, which names the type of error.',
+                    'The very first line of the file.',
+                    'The middle of the traceback.',
+                ],
+                'answer': 0,
+                'explanation': 'The last line of a traceback names the error type and usually explains what went wrong in plain language.',
+            },
+            {
+                'question': 'What is a quick way to check what value a variable actually holds while debugging?',
+                'options': [
+                    'Add a print() statement right before the line that fails.',
+                    'Delete the variable and try again.',
+                    'Rename the variable.',
+                ],
+                'answer': 0,
+                'explanation': 'Printing a variable right before the problem line shows you exactly what Python is working with at that moment.',
+            },
+            {
+                'question': 'What does a TypeError usually mean?',
+                'options': [
+                    'An operation was used on values of a type that does not support it, like adding a string and a number.',
+                    'The internet connection dropped.',
+                    'A file could not be found.',
+                ],
+                'answer': 0,
+                'explanation': 'TypeError shows up when you try to combine or use values in a way their types do not support, such as price + tax when price is still a string.',
+            },
+        ],
+    },
+    {
+        'slug': 'building-a-mini-program',
+        'module_slug': 'mini-projects',
+        'title': 'From Concepts to a Mini Program',
+        'summary': 'Combine input, conditionals, and f-strings into one small, complete program.',
+        'duration': '12 min',
+        'goal': 'By the end, you will know how to plan a tiny program in plain English first, then build it a few lines at a time using concepts you already know.',
+        'explanation': 'Every mini project is just a handful of lessons stacked together. The trick is not learning something new, it is deciding, in plain English, what the program should do step by step before writing any code. Once you have a short list of steps, each one usually maps to a line or two of Python you already know: input() to collect something, a variable to store it, an if statement to react to it, and an f-string to explain the result. This lesson uses two input() calls, so add two lines to the Sample input box below the editor before pressing Run: one for the budget, one for the amount spent.',
+        'starter_code': 'budget = float(input("What is your budget? "))\nspent = float(input("How much have you spent? "))\nremaining = budget - spent\n\nif remaining < 0:\n    print(f"You are over budget by ${-remaining:.2f}.")\nelse:\n    print(f"You have ${remaining:.2f} left.")',
+        'try_it': 'Add a third message for when remaining is exactly 0, letting the user know they spent their budget exactly.',
+        'common_mistake': 'Trying to write the whole program in one go often stalls beginners. Write the plain-English steps as comments first, then fill in one line of code per comment.',
+        'mini_challenge': 'Extend the program to also print a warning message if remaining is less than 10% of the original budget, even if it is not negative yet.',
+        'expected_output': 'What is your budget? 100\nHow much have you spent? 40\nYou have $60.00 left.',
+        'practice_challenge_slug': '',
+        'quiz': [
+            {
+                'question': 'What is the first step when planning a mini program?',
+                'options': [
+                    'Write out the steps in plain English before writing any code.',
+                    'Start typing code immediately and fix errors as they come up.',
+                    'Pick the fanciest feature you know and use it.',
+                ],
+                'answer': 0,
+                'explanation': 'Planning the steps in plain English first makes it much easier to see which small piece of Python each step needs.',
+            },
+            {
+                'question': 'In the starter code, why is float() used around each input() call?',
+                'options': [
+                    'input() always returns a string, and the program needs to do math with the values.',
+                    'float() prints the value to the screen.',
+                    'It is required syntax for every input() call.',
+                ],
+                'answer': 0,
+                'explanation': 'Since input() always returns a string, float() converts the typed text into a number so it can be used in subtraction.',
+            },
+            {
+                'question': 'Why break a mini project into small steps instead of writing it all at once?',
+                'options': [
+                    'Each small step is easier to test and debug on its own.',
+                    'Python requires programs to be written in small steps.',
+                    'It makes the program run faster.',
+                ],
+                'answer': 0,
+                'explanation': 'Testing one small piece at a time makes it much easier to catch a mistake before it gets buried under more code.',
+            },
+        ],
+    },
+    {
+        'slug': 'installing-python-and-next-steps',
+        'module_slug': 'next-steps',
+        'title': 'Installing Python and What to Do Next',
+        'summary': 'Set up Python and a code editor on your own computer, then pick a clear next step to keep building.',
+        'duration': '10 min',
+        'goal': 'By the end, you will know how to install Python locally, open your first file in a code editor, and choose one concrete next step to keep learning.',
+        'explanation': 'Everything so far has run in the browser so you could focus on learning, not setup. Installing Python locally is a short one-time step that unlocks bigger projects: install Python from python.org, install a free code editor like VS Code, then create a file ending in .py and run it from a terminal with python filename.py. From there, the fastest way to keep momentum is picking one small, concrete goal rather than trying to learn everything at once.',
+        'starter_code': '# This is what a local Python file looks like.\n# Save this as hello.py and run it with: python hello.py\n\nprint("Hello from my own computer!")',
+        'try_it': 'Imagine you just installed Python locally. Change this comment to describe the exact command you would type to run a file named practice.py.',
+        'common_mistake': 'Beginners often try to learn a code editor, git, and a new project all at the same time. Set up one piece, get it working, then move to the next so each step feels manageable.',
+        'mini_challenge': 'Write down one project idea from the Projects page and one new topic you want to learn next, in your own words.',
+        'expected_output': 'Hello from my own computer!',
+        'practice_challenge_slug': '',
+        'quiz': [
+            {
+                'question': 'What is the first step to running Python outside the browser?',
+                'options': [
+                    'Install Python from python.org.',
+                    'Buy a new computer.',
+                    'Learn a new programming language first.',
+                ],
+                'answer': 0,
+                'explanation': 'Installing Python from the official python.org site is the standard first step to running Python locally.',
+            },
+            {
+                'question': 'What command runs a local Python file named hello.py from a terminal?',
+                'options': [
+                    'python hello.py',
+                    'run hello.py',
+                    'open hello.py',
+                ],
+                'answer': 0,
+                'explanation': 'Typing python followed by the filename tells your computer to run that file with Python.',
+            },
+            {
+                'question': 'Why is it better to set up one new tool at a time instead of everything at once?',
+                'options': [
+                    'Each piece is easier to get working and troubleshoot on its own.',
+                    'Python requires tools to be installed in a specific order.',
+                    'It is required by python.org.',
+                ],
+                'answer': 0,
+                'explanation': 'Setting up one tool at a time keeps troubleshooting simple, since you know exactly what changed if something breaks.',
+            },
+        ],
+    },
+]
+
 CHALLENGES = [
     {
         'slug': 'warm-up-greeting',
@@ -745,51 +942,36 @@ CHALLENGES = [
         'slug': 'data-type-mix-up',
         'title': 'Data Type Mix-Up',
         'difficulty': 'Beginner',
-        'prompt': 'Create one int, one float, one boolean, and one string, then print them in one f-string summary.',
-        'hint': 'Try values like 7, 1.5, True, and "Python".',
-        'starter_code': 'completed_lessons = 7\nstudy_hours = 1.5\npracticed_today = True\nfavorite_language = "Python"\n\nprint(f"Lessons: {completed_lessons}, Hours: {study_hours}, Practiced: {practiced_today}, Language: {favorite_language}")',
-        'expected_output': 'Lessons: 7, Hours: 1.5, Practiced: True, Language: Python',
+        'prompt': 'Create one int, one float, and one string, then print them together in one f-string summary.',
+        'hint': 'Try values like 7, 1.5, and "Python".',
+        'starter_code': 'completed_lessons = 7\nstudy_hours = 1.5\nfavorite_language = "Python"\n\nprint(f"Lessons: {completed_lessons}, Hours: {study_hours}, Language: {favorite_language}")',
+        'expected_output': 'Lessons: 7, Hours: 1.5, Language: Python',
         'success_checks': [
-            'Your code includes an int, float, boolean, and string.',
+            'Your code includes an int, a float, and a string.',
             'You used an f-string to print the summary.',
-            'The output clearly shows all four values.',
+            'The output clearly shows all three values.',
         ],
-        'reflection_prompt': 'Which data type still feels the least familiar, and how can you tell it apart from the others?',
+        'reflection_prompt': 'Which of these data types still feels the least familiar, and how can you tell it apart from the others?',
     },
     {
-        'slug': 'tuple-to-loop',
-        'title': 'Tuple to Loop',
+        'slug': 'boolean-checkpoint',
+        'title': 'Boolean Checkpoint',
         'difficulty': 'Beginner',
-        'prompt': 'Make a tuple of three beginner Python topics and use a for loop to print each one.',
-        'hint': 'A tuple uses parentheses, like ("ints", "strings", "loops").',
-        'starter_code': 'topics = ("ints", "strings", "loops")\n\nfor topic in topics:\n    print(topic)',
-        'expected_output': 'ints\nstrings\nloops',
+        'prompt': 'Create a boolean called practiced_today and use a simple if statement to print a message when it is True.',
+        'hint': 'Try practiced_today = True, then use if practiced_today: to print your message.',
+        'starter_code': 'practiced_today = True\n\nif practiced_today:\n    print("Nice! You showed up today.")',
+        'expected_output': 'Nice! You showed up today.',
         'success_checks': [
-            'You created a tuple with three values.',
-            'You used a for loop to print each value.',
-            'The printed output shows one topic per line.',
+            'You created a boolean variable.',
+            'You used a simple if statement to check it.',
+            'Your message prints when the boolean is True.',
         ],
-        'reflection_prompt': 'How would the output change if you added one more topic to the tuple?',
-    },
-    {
-        'slug': 'function-practice',
-        'title': 'Function Practice',
-        'difficulty': 'Beginner',
-        'prompt': 'Write a function that accepts a name and prints a welcome message with an f-string.',
-        'hint': 'Start with def welcome_student(name): and return or print one sentence.',
-        'starter_code': 'def welcome_student(name):\n    print(f"Welcome, {name}!")\n\nwelcome_student("Michael")',
-        'expected_output': 'Welcome, Michael!',
-        'success_checks': [
-            'You defined a function with a parameter.',
-            'You used an f-string inside the function.',
-            'You called the function so output actually appeared.',
-        ],
-        'reflection_prompt': 'What second argument could you add later to make this welcome message more flexible?',
+        'reflection_prompt': 'What would you add so a different message prints when the boolean is False?',
     },
     {
         'slug': 'conditional-coach',
         'title': 'Conditional Coach',
-        'difficulty': 'Beginner',
+        'difficulty': 'Building Confidence',
         'prompt': 'Create a score variable and use if, elif, and else to print different feedback messages.',
         'hint': 'Try one branch for high scores, one for medium scores, and one for lower scores.',
         'starter_code': 'score = 85\n\nif score >= 90:\n    print("Amazing work!")\nelif score >= 70:\n    print("Nice progress!")\nelse:\n    print("Keep practicing!")',
@@ -804,7 +986,7 @@ CHALLENGES = [
     {
         'slug': 'list-and-dictionary-snapshot',
         'title': 'List and Dictionary Snapshot',
-        'difficulty': 'Beginner',
+        'difficulty': 'Building Confidence',
         'prompt': 'Make a list of three topics and a dictionary with your name and current goal, then print one value from each.',
         'hint': 'Use square brackets for lists and curly braces with keys for dictionaries.',
         'starter_code': 'topics = ["variables", "loops", "functions"]\nstudent_profile = {"name": "Michael", "goal": "Finish beginner Python"}\n\nprint(topics[0])\nprint(student_profile["goal"])',
@@ -815,6 +997,51 @@ CHALLENGES = [
             'You printed one value from the dictionary using its key.',
         ],
         'reflection_prompt': 'If you added one more key to the dictionary, what would be most useful to store there?',
+    },
+    {
+        'slug': 'loop-through-a-list',
+        'title': 'Loop Through a List',
+        'difficulty': 'Building Confidence',
+        'prompt': 'Create a list of three practice topics and use a for loop to print each one.',
+        'hint': 'A list uses square brackets, like ["topic one", "topic two"].',
+        'starter_code': 'topics = ["variables", "strings", "loops"]\n\nfor topic in topics:\n    print(topic)',
+        'expected_output': 'variables\nstrings\nloops',
+        'success_checks': [
+            'You created a list with three values.',
+            'You used a for loop to print each value.',
+            'The printed output shows one topic per line.',
+        ],
+        'reflection_prompt': 'How would the output change if you added one more topic to the list?',
+    },
+    {
+        'slug': 'tuple-to-loop',
+        'title': 'Tuple to Loop',
+        'difficulty': 'Building Confidence',
+        'prompt': 'Make a tuple of three beginner Python topics and use a for loop to print each one.',
+        'hint': 'A tuple uses parentheses, like ("ints", "strings", "loops").',
+        'starter_code': 'topics = ("ints", "strings", "loops")\n\nfor topic in topics:\n    print(topic)',
+        'expected_output': 'ints\nstrings\nloops',
+        'success_checks': [
+            'You created a tuple with three values.',
+            'You used a for loop to print each value.',
+            'The printed output shows one topic per line.',
+        ],
+        'reflection_prompt': 'How would the output change if you added one more topic to the tuple?',
+    },
+    {
+        'slug': 'function-practice',
+        'title': 'Function Practice',
+        'difficulty': 'Stretch',
+        'prompt': 'Write a function that accepts a name and prints a welcome message with an f-string.',
+        'hint': 'Start with def welcome_student(name): and return or print one sentence.',
+        'starter_code': 'def welcome_student(name):\n    print(f"Welcome, {name}!")\n\nwelcome_student("Michael")',
+        'expected_output': 'Welcome, Michael!',
+        'success_checks': [
+            'You defined a function with a parameter.',
+            'You used an f-string inside the function.',
+            'You called the function so output actually appeared.',
+        ],
+        'reflection_prompt': 'What second argument could you add later to make this welcome message more flexible?',
     },
 ]
 

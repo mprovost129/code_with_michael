@@ -7,5 +7,19 @@
             <span>{{ site_stats.followers }} followers already cheering you on.</span>
             <a href="{% url 'core:home' %}#email-signup">Join the email list</a>
             <a href="{% url 'core:start_here' %}">Start here</a>
+            <a
+                href="{% url 'core:resources' %}"
+                data-track-click="affiliate_click"
+                data-track-metadata='{"link_type": "shop_cta", "source": "footer"}'
+            >Shop Recommendations</a>
+            {% if social_links %}
+            <div class="site-footer__social">
+                {% for social in social_links %}
+                <a href="{{ social.url }}" target="_blank" rel="noopener" aria-label="{{ social.label }}"><i class="bi {{ social.icon }}"></i></a>
+                {% endfor %}
+            </div>
+            {% endif %}
+            <a class="site-footer__legal" href="{% url 'core:privacy_policy' %}">Privacy Policy</a>
+            <a class="site-footer__legal" href="{% url 'core:terms_of_service' %}">Terms of Service</a>
         </div>
     </footer>
