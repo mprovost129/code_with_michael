@@ -20,7 +20,7 @@ function getRecaptchaToken(action) {
     const siteKey = document.querySelector('meta[name="recaptcha-site-key"]')?.content;
 
     return new Promise((resolve) => {
-        if (!siteKey || typeof grecaptcha === "undefined" || !grecaptcha.enterprise) {
+        if (!siteKey || typeof grecaptcha === "undefined") {
             // Not configured yet — the server treats a missing token as
             // "unverified" only when reCAPTCHA is actually turned on.
             resolve(null);
@@ -28,8 +28,8 @@ function getRecaptchaToken(action) {
         }
 
         try {
-            grecaptcha.enterprise.ready(() => {
-                grecaptcha.enterprise
+            grecaptcha.ready(() => {
+                grecaptcha
                     .execute(siteKey, { action })
                     .then(resolve)
                     .catch(() => resolve(null));

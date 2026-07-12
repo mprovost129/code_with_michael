@@ -168,11 +168,10 @@ ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
 # Google Analytics (GA4). Leave blank to disable tracking entirely.
 GA_MEASUREMENT_ID = os.environ.get('GA_MEASUREMENT_ID', '')
 
-# reCAPTCHA (Google Cloud Fraud Defense / reCAPTCHA Enterprise). All three
-# must be set to enable verification; leave blank to disable (requests are
-# allowed through unverified). See docs/recaptcha_setup.md for the Google
-# Cloud console steps needed to obtain these values.
+# reCAPTCHA v3 (score-based, invisible). Both keys must be set to enable
+# verification; leave blank to disable (requests are allowed through
+# unverified). See docs/recaptcha_setup.md for how to obtain these from the
+# reCAPTCHA admin console.
 RECAPTCHA_SITE_KEY = os.environ.get('RECAPTCHA_SITE_KEY', '')
 RECAPTCHA_SECRET_KEY = os.environ.get('RECAPTCHA_SECRET_KEY', '')
-RECAPTCHA_PROJECT_ID = os.environ.get('RECAPTCHA_PROJECT_ID', '')
 RECAPTCHA_MIN_SCORE = float(os.environ.get('RECAPTCHA_MIN_SCORE', '0.5'))

@@ -24,6 +24,16 @@ from core.models import (
 )
 from core.services import build_shuffled_quiz, get_streak_and_badges, search_content
 
+# Real reCAPTCHA credentials may be present in .env once the site is wired
+# up to Google Cloud, so tests that aren't about reCAPTCHA behavior must not
+# rely on it being unconfigured by ambient environment state. Force it off
+# explicitly wherever a test's outcome would otherwise depend on whichever
+# secrets happen to be in .env at test-run time.
+RECAPTCHA_DISABLED_SETTINGS = {
+    'RECAPTCHA_SITE_KEY': '',
+    'RECAPTCHA_SECRET_KEY': '',
+}
+
 
 class EngagementEventCreateViewTests(TestCase):
     def setUp(self):
@@ -154,6 +164,7 @@ class EngagementEventCreateViewTests(TestCase):
         mock_check_rate_limit.assert_called_once_with(response.wsgi_request, 'engagement_event', limit=300, window_seconds=3600)
 
 
+@override_settings(**RECAPTCHA_DISABLED_SETTINGS)
 class HomeEmailSubscriberTests(TestCase):
     def test_homepage_creates_email_subscriber(self):
         response = self.client.post(
@@ -1267,6 +1278,7 @@ class ResourcesFeatureTests(TestCase):
         self.assertContains(response, 'Recommendations are coming soon.')
 
 
+@override_settings(**RECAPTCHA_DISABLED_SETTINGS)
 class AiCodeHintViewTests(TestCase):
     def setUp(self):
         cache.clear()
@@ -1380,6 +1392,7 @@ class AiCodeHintViewTests(TestCase):
         )
 
 
+@override_settings(**RECAPTCHA_DISABLED_SETTINGS)
 class AiQuizExplainViewTests(TestCase):
     def setUp(self):
         cache.clear()
@@ -1458,6 +1471,7 @@ class AiQuizExplainViewTests(TestCase):
         self.assertEqual(response.status_code, 400)
 
 
+@override_settings(**RECAPTCHA_DISABLED_SETTINGS)
 class AiTutorChatViewTests(TestCase):
     def setUp(self):
         cache.clear()
@@ -1621,13 +1635,13 @@ class BootstrapLearningContentCommandTests(TestCase):
 
 RECAPTCHA_ENABLED_SETTINGS = {
     'RECAPTCHA_SITE_KEY': 'test-site-key',
-    'RECAPTCHA_SECRET_KEY': 'test-api-key',
-    'RECAPTCHA_PROJECT_ID': 'test-project',
+    'RECAPTCHA_SECRET_KEY': 'test-secret-key',
     'RECAPTCHA_MIN_SCORE': 0.5,
 }
 
 
 class RecaptchaVerificationTests(TestCase):
+    @override_settings(**RECAPTCHA_DISABLED_SETTINGS)
     def test_unconfigured_allows_through_without_a_token(self):
         from core.recaptcha import verify_recaptcha
 
@@ -1646,8 +1660,9 @@ class RecaptchaVerificationTests(TestCase):
 
         mock_post.return_value.raise_for_status.return_value = None
         mock_post.return_value.json.return_value = {
-            'tokenProperties': {'valid': True, 'action': 'email_signup'},
-            'riskAnalysis': {'score': 0.9},
+            'success': True,
+            'action': 'email_signup',
+            'score': 0.9,
         }
 
         self.assertTrue(verify_recaptcha('good-token', 'email_signup'))
@@ -1659,8 +1674,9 @@ class RecaptchaVerificationTests(TestCase):
 
         mock_post.return_value.raise_for_status.return_value = None
         mock_post.return_value.json.return_value = {
-            'tokenProperties': {'valid': True, 'action': 'email_signup'},
-            'riskAnalysis': {'score': 0.1},
+            'success': True,
+            'action': 'email_signup',
+            'score': 0.1,
         }
 
         self.assertFalse(verify_recaptcha('bot-token', 'email_signup'))
@@ -1672,8 +1688,9 @@ class RecaptchaVerificationTests(TestCase):
 
         mock_post.return_value.raise_for_status.return_value = None
         mock_post.return_value.json.return_value = {
-            'tokenProperties': {'valid': True, 'action': 'some_other_action'},
-            'riskAnalysis': {'score': 0.9},
+            'success': True,
+            'action': 'some_other_action',
+            'score': 0.9,
         }
 
         self.assertFalse(verify_recaptcha('token', 'email_signup'))
@@ -1685,7 +1702,8 @@ class RecaptchaVerificationTests(TestCase):
 
         mock_post.return_value.raise_for_status.return_value = None
         mock_post.return_value.json.return_value = {
-            'tokenProperties': {'valid': False},
+            'success': False,
+            'error-codes': ['invalid-input-response'],
         }
 
         self.assertFalse(verify_recaptcha('expired-token', 'email_signup'))
