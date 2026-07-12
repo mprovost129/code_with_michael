@@ -14,6 +14,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+# LOGGING's file handler writes to logs/django.log and won't create the
+# directory itself. logs/ is excluded from the build context (.dockerignore)
+# since the host's accumulated log file shouldn't be baked into the image.
+RUN mkdir -p logs
+
 # collectstatic only needs Django to boot, not real secrets or a live
 # database — these placeholders satisfy the required settings so the build
 # doesn't depend on secrets being present in the build context. Real values
