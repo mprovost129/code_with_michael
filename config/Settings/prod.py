@@ -50,6 +50,12 @@ CACHES = {
 }
 
 # HTTPS / security
+# Render (like Heroku) terminates TLS at its own proxy and forwards requests
+# to the app over plain HTTP, setting X-Forwarded-Proto to tell us the
+# original scheme. Without this, request.is_secure() is always False behind
+# the proxy, so SECURE_SSL_REDIRECT below redirects every single request to
+# HTTPS forever — an infinite redirect loop (ERR_TOO_MANY_REDIRECTS).
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_SSL_REDIRECT = True
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
