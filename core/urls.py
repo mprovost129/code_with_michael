@@ -28,4 +28,7 @@ urlpatterns = [
     path('ai/tutor-chat/', views.AiTutorChatView.as_view(), name='ai_tutor_chat'),
     path('privacy/', views.PrivacyPolicyView.as_view(), name='privacy_policy'),
     path('terms/', views.TermsOfServiceView.as_view(), name='terms_of_service'),
+    path('premium-course/', views.PremiumCourseView.as_view(), name='premium_course'),
+    path('premium-course/checkout/', views.PremiumCourseCheckoutView.as_view(), name='premium_course_checkout'),
+    path('premium-course/webhook/', views.StripeWebhookView.as_view(), name='premium_course_webhook'),
 ]

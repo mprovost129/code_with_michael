@@ -152,6 +152,10 @@
         <h2>You are caught up.</h2>
         <p>Once you start or reset more lessons, your next recommended lesson will appear here.</p>
         <a class="button button--primary" href="{% url 'core:lessons' %}">Browse Lessons</a>
+        {% if not has_premium_access %}
+        <p class="hint-text">Ready for more? The full Python for Absolute Beginners course covers error handling, files, modules, and classes, with real mini projects.</p>
+        <a class="button button--accent button--small" href="{% url 'core:premium_course' %}">See the Full Course</a>
+        {% endif %}
         {% endif %}
     </article>
 

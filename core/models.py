@@ -260,3 +260,23 @@ class EmailOnboardingDelivery(models.Model):
 
     def __str__(self):
         return f'{self.email} - {self.step}'
+
+
+class PremiumPurchase(models.Model):
+    """Grants a user access to the premium 'Python for Absolute Beginners'
+    course after a completed Stripe Checkout payment. One-time purchase,
+    not a subscription — a row existing for a user means they have
+    permanent access.
+    """
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='premium_purchases')
+    stripe_checkout_session_id = models.CharField(max_length=255, unique=True)
+    stripe_payment_intent_id = models.CharField(max_length=255, blank=True)
+    amount_paid_cents = models.PositiveIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ('-created_at', '-id')
+
+    def __str__(self):
+        return f'{self.user} - ${self.amount_paid_cents / 100:.2f}'

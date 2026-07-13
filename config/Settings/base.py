@@ -176,3 +176,11 @@ GA_MEASUREMENT_ID = os.environ.get('GA_MEASUREMENT_ID', '')
 RECAPTCHA_SITE_KEY = os.environ.get('RECAPTCHA_SITE_KEY', '')
 RECAPTCHA_SECRET_KEY = os.environ.get('RECAPTCHA_SECRET_KEY', '')
 RECAPTCHA_MIN_SCORE = float(os.environ.get('RECAPTCHA_MIN_SCORE', '0.5'))
+
+# Stripe (premium course paywall). All three must be set to enable checkout;
+# leave blank to keep the premium course page in a "coming soon" state with
+# no purchase button. See docs/stripe_setup.md.
+STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY', '')
+STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY', '')
+STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
+PREMIUM_COURSE_PRICE_CENTS = int(os.environ.get('PREMIUM_COURSE_PRICE_CENTS', '4900'))

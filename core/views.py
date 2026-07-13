@@ -1,11 +1,15 @@
 import json
+import logging
 
+import stripe
 from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.mail import send_mail
-from django.http import Http404, JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import redirect
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -20,13 +24,14 @@ from .ai import (
     get_quiz_explanation,
     get_tutor_reply,
 )
-from .content import HOME_FEATURES, ROADMAP_STEPS
+from .content import HOME_FEATURES, PREMIUM_COURSE_SECTIONS, ROADMAP_STEPS
 from .forms import CommunityPostForm, EmailSubscriberForm
 from .models import (
     Challenge,
     EmailSubscriber,
     EngagementEvent,
     Lesson,
+    PremiumPurchase,
     UserChallengeProgress,
     UserLessonProgress,
 )
@@ -53,6 +58,8 @@ from .services import (
     get_user_progress_summary,
     search_content,
 )
+
+logger = logging.getLogger('django')
 
 
 class NavigationContextMixin:
@@ -460,6 +467,7 @@ class MyProgressView(LoginRequiredMixin, NavigationContextMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         context.update(get_user_progress_summary(self.request.user))
         context.update(get_streak_and_badges(self.request.user))
+        context['has_premium_access'] = PremiumPurchase.objects.filter(user=self.request.user).exists()
         return context
 
 
@@ -858,3 +866,106 @@ class EngagementEventCreateView(View):
             },
         )
         return JsonResponse({'ok': True})
+
+
+def _stripe_configured():
+    return bool(settings.STRIPE_SECRET_KEY and settings.STRIPE_PUBLISHABLE_KEY)
+
+
+class PremiumCourseView(NavigationContextMixin, TemplateView):
+    template_name = 'core/premium_course.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['stripe_configured'] = _stripe_configured()
+        context['price_display'] = f'${settings.PREMIUM_COURSE_PRICE_CENTS / 100:.2f}'
+        context['premium_sections'] = PREMIUM_COURSE_SECTIONS
+        context['has_access'] = (
+            self.request.user.is_authenticated
+            and PremiumPurchase.objects.filter(user=self.request.user).exists()
+        )
+        return context
+
+
+class PremiumCourseCheckoutView(LoginRequiredMixin, View):
+    http_method_names = ['post']
+
+    def post(self, request, *args, **kwargs):
+        if not _stripe_configured():
+            messages.error(request, 'Checkout is not available yet. Please check back soon.')
+            return redirect('core:premium_course')
+
+        if PremiumPurchase.objects.filter(user=request.user).exists():
+            return redirect('core:premium_course')
+
+        stripe.api_key = settings.STRIPE_SECRET_KEY
+        success_url = request.build_absolute_uri(reverse('core:premium_course')) + '?purchase=success'
+        cancel_url = request.build_absolute_uri(reverse('core:premium_course')) + '?purchase=cancelled'
+
+        try:
+            session = stripe.checkout.Session.create(
+                mode='payment',
+                line_items=[{
+                    'price_data': {
+                        'currency': 'usd',
+                        'unit_amount': settings.PREMIUM_COURSE_PRICE_CENTS,
+                        'product_data': {
+                            'name': 'Python for Absolute Beginners — Full Course',
+                            'description': 'The complete course: error handling, files, modules, classes, and real mini projects, unlocked after the free lesson path.',
+                        },
+                    },
+                    'quantity': 1,
+                }],
+                client_reference_id=str(request.user.id),
+                customer_email=request.user.email,
+                success_url=success_url,
+                cancel_url=cancel_url,
+                metadata={'user_id': str(request.user.id)},
+            )
+        except stripe.error.StripeError:
+            logger.exception('Failed to create Stripe checkout session')
+            messages.error(request, 'Something went wrong starting checkout. Please try again.')
+            return redirect('core:premium_course')
+
+        return redirect(session.url)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class StripeWebhookView(View):
+    http_method_names = ['post']
+
+    def post(self, request, *args, **kwargs):
+        if not settings.STRIPE_WEBHOOK_SECRET:
+            return HttpResponse(status=400)
+
+        sig_header = request.META.get('HTTP_STRIPE_SIGNATURE', '')
+        try:
+            event = stripe.Webhook.construct_event(request.body, sig_header, settings.STRIPE_WEBHOOK_SECRET)
+        except (ValueError, stripe.error.SignatureVerificationError):
+            logger.exception('Invalid Stripe webhook payload or signature')
+            return HttpResponse(status=400)
+
+        if event['type'] == 'checkout.session.completed':
+            self._grant_access(event['data']['object'])
+
+        return HttpResponse(status=200)
+
+    def _grant_access(self, session):
+        user_id = session.get('client_reference_id')
+        if not user_id:
+            logger.error('Stripe checkout.session.completed missing client_reference_id')
+            return
+
+        user = get_user_model().objects.filter(pk=user_id).first()
+        if user is None:
+            logger.error('Stripe checkout session references unknown user id %s', user_id)
+            return
+
+        PremiumPurchase.objects.get_or_create(
+            stripe_checkout_session_id=session['id'],
+            defaults={
+                'user': user,
+                'stripe_payment_intent_id': session.get('payment_intent') or '',
+                'amount_paid_cents': session.get('amount_total') or 0,
+            },
+        )

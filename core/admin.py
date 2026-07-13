@@ -9,6 +9,7 @@ from .models import (
     EngagementEvent,
     Lesson,
     Module,
+    PremiumPurchase,
     Project,
     Resource,
     Tip,
@@ -129,3 +130,12 @@ class UserChallengeProgressAdmin(admin.ModelAdmin):
     list_filter = ('is_completed', 'started_at', 'completed_at')
     search_fields = ('user__email', 'user__username', 'challenge__title', 'response_text')
     ordering = ('-last_updated_at',)
+
+
+@admin.register(PremiumPurchase)
+class PremiumPurchaseAdmin(admin.ModelAdmin):
+    list_display = ('user', 'amount_paid_cents', 'stripe_checkout_session_id', 'created_at')
+    list_filter = ('created_at',)
+    search_fields = ('user__email', 'user__username', 'stripe_checkout_session_id', 'stripe_payment_intent_id')
+    ordering = ('-created_at',)
+    readonly_fields = ('user', 'stripe_checkout_session_id', 'stripe_payment_intent_id', 'amount_paid_cents', 'created_at')

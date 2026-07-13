@@ -2,6 +2,7 @@ import json
 from datetime import timedelta
 from unittest.mock import patch
 
+import stripe
 from django.contrib.auth import get_user_model
 from django.core import mail
 from django.core.cache import cache
@@ -17,6 +18,7 @@ from core.models import (
     EngagementEvent,
     Lesson,
     Module,
+    PremiumPurchase,
     Project,
     Resource,
     UserChallengeProgress,
@@ -164,7 +166,7 @@ class EngagementEventCreateViewTests(TestCase):
         mock_check_rate_limit.assert_called_once_with(response.wsgi_request, 'engagement_event', limit=300, window_seconds=3600)
 
 
-@override_settings(**RECAPTCHA_DISABLED_SETTINGS)
+@override_settings(**RECAPTCHA_DISABLED_SETTINGS, MARKETING_CONTACT_EMAIL='')
 class HomeEmailSubscriberTests(TestCase):
     def test_homepage_creates_email_subscriber(self):
         response = self.client.post(
@@ -210,6 +212,25 @@ class HomeEmailSubscriberTests(TestCase):
             1,
         )
         self.assertEqual(len(mail.outbox), 0)
+
+    def test_new_subscriber_notifies_marketing_contact_when_configured(self):
+        with override_settings(MARKETING_CONTACT_EMAIL='owner@example.com'):
+            self.client.post(
+                reverse('core:home'),
+                data={'email': 'futurestudent@example.com', 'first_name': 'Future'},
+            )
+
+        self.assertEqual(len(mail.outbox), 2)
+        notification = next(m for m in mail.outbox if m.to == ['owner@example.com'])
+        self.assertIn('futurestudent@example.com', notification.body)
+
+    def test_new_subscriber_skips_marketing_notification_when_not_configured(self):
+        self.client.post(
+            reverse('core:home'),
+            data={'email': 'futurestudent@example.com', 'first_name': 'Future'},
+        )
+
+        self.assertEqual(len(mail.outbox), 1)
 
     def test_footer_signup_from_a_non_home_page_creates_subscriber_with_footer_source(self):
         response = self.client.post(
@@ -1971,6 +1992,17 @@ class CurriculumContentIntegrityTests(TestCase):
     def test_booleans_are_taught_before_multi_branch_conditionals(self):
         self.assertLess(self.lesson_position['booleans-and-choices'], self.lesson_position['conditionals-basics'])
 
+    def test_advanced_topics_are_taught_after_functions_in_dependency_order(self):
+        order = [
+            'functions-basics',
+            'error-handling-basics',
+            'reading-and-writing-files',
+            'importing-modules',
+            'intro-to-classes-and-objects',
+        ]
+        positions = [self.lesson_position[slug] for slug in order]
+        self.assertEqual(positions, sorted(positions), 'Advanced topics are out of dependency order')
+
     def test_data_type_mix_up_challenge_does_not_require_booleans(self):
         challenge = next(c for c in self.content.CHALLENGES if c['slug'] == 'data-type-mix-up')
         combined_text = challenge['prompt'] + challenge['starter_code']
@@ -1985,3 +2017,325 @@ class CurriculumContentIntegrityTests(TestCase):
         challenge = next(c for c in self.content.CHALLENGES if c['slug'] == 'loop-through-a-list')
         self.assertNotIn('(', challenge['starter_code'].split('=', 1)[1].split('\n')[0])
         self.assertIn('[', challenge['starter_code'])
+
+
+class NewLessonStarterCodeOutputTests(TestCase):
+    """Actually runs each new lesson/challenge's starter_code in real Python
+    and checks stdout matches expected_output exactly, so a content typo
+    can't silently drift from what the browser editor would actually show.
+    """
+
+    def _run_and_capture_stdout(self, code):
+        import contextlib
+        import io
+        import os
+        import tempfile
+
+        buffer = io.StringIO()
+        with tempfile.TemporaryDirectory() as tmp_dir, contextlib.redirect_stdout(buffer):
+            original_cwd = os.getcwd()
+            os.chdir(tmp_dir)
+            try:
+                exec(code, {'__name__': '__main__'})
+            finally:
+                os.chdir(original_cwd)
+        return buffer.getvalue().rstrip('\n')
+
+    def _assert_lesson_output_matches(self, slug):
+        from core import content
+
+        lesson = next(item for item in content.LESSONS if item['slug'] == slug)
+        actual = self._run_and_capture_stdout(lesson['starter_code'])
+        self.assertEqual(actual, lesson['expected_output'].rstrip('\n'))
+
+    def _assert_challenge_output_matches(self, slug):
+        from core import content
+
+        challenge = next(item for item in content.CHALLENGES if item['slug'] == slug)
+        actual = self._run_and_capture_stdout(challenge['starter_code'])
+        self.assertEqual(actual, challenge['expected_output'].rstrip('\n'))
+
+    def test_error_handling_basics_lesson_output(self):
+        self._assert_lesson_output_matches('error-handling-basics')
+
+    def test_reading_and_writing_files_lesson_output(self):
+        self._assert_lesson_output_matches('reading-and-writing-files')
+
+    def test_importing_modules_lesson_output(self):
+        self._assert_lesson_output_matches('importing-modules')
+
+    def test_intro_to_classes_lesson_output(self):
+        self._assert_lesson_output_matches('intro-to-classes-and-objects')
+
+    def test_safe_number_check_challenge_output(self):
+        self._assert_challenge_output_matches('safe-number-check')
+
+    def test_write_and_read_a_file_challenge_output(self):
+        self._assert_challenge_output_matches('write-and-read-a-file')
+
+    def test_random_choice_picker_challenge_output(self):
+        self._assert_challenge_output_matches('random-choice-picker')
+
+    def test_build_a_pet_class_challenge_output(self):
+        self._assert_challenge_output_matches('build-a-pet-class')
+
+
+STRIPE_CONFIGURED_SETTINGS = {
+    'STRIPE_PUBLISHABLE_KEY': 'pk_test_fake',
+    'STRIPE_SECRET_KEY': 'sk_test_fake',
+    'STRIPE_WEBHOOK_SECRET': 'whsec_fake',
+    'PREMIUM_COURSE_PRICE_CENTS': 4900,
+}
+
+
+class PremiumCourseViewTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            email='learner@example.com',
+            username='learner_one',
+            password='testpass123',
+        )
+
+    def test_anonymous_visitor_sees_locked_page_with_login_link(self):
+        response = self.client.get(reverse('core:premium_course'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Log In to Purchase')
+        self.assertNotContains(response, "Welcome to “Python for Absolute Beginners.”")
+
+    def test_locked_page_does_not_leak_full_lecture_content(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('core:premium_course'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Full Course')
+        self.assertNotContains(response, 'Every professional developer was once a beginner')
+
+    @override_settings(**STRIPE_CONFIGURED_SETTINGS)
+    def test_authenticated_user_without_purchase_sees_buy_button(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('core:premium_course'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Buy Now')
+
+    def test_authenticated_user_sees_coming_soon_when_stripe_not_configured(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('core:premium_course'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "isn't set up yet")
+        self.assertNotContains(response, 'Buy Now')
+
+    def test_purchaser_sees_full_lecture_content(self):
+        self.client.force_login(self.user)
+        PremiumPurchase.objects.create(
+            user=self.user,
+            stripe_checkout_session_id='cs_test_123',
+            amount_paid_cents=4900,
+        )
+
+        response = self.client.get(reverse('core:premium_course'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Every professional developer was once a beginner')
+        self.assertNotContains(response, 'Buy Now')
+
+    def test_my_progress_shows_course_cta_when_all_caught_up_and_not_purchased(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('core:my_progress'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'See the Full Course')
+
+    def test_my_progress_hides_course_cta_after_purchase(self):
+        self.client.force_login(self.user)
+        PremiumPurchase.objects.create(
+            user=self.user,
+            stripe_checkout_session_id='cs_test_456',
+            amount_paid_cents=4900,
+        )
+
+        response = self.client.get(reverse('core:my_progress'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'See the Full Course')
+
+
+class PremiumCourseCheckoutViewTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            email='learner@example.com',
+            username='learner_one',
+            password='testpass123',
+        )
+
+    def test_anonymous_user_is_redirected_to_login(self):
+        response = self.client.post(reverse('core:premium_course_checkout'))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/accounts/login/', response.url)
+
+    def test_checkout_without_stripe_configured_shows_error(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(reverse('core:premium_course_checkout'), follow=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Checkout is not available yet')
+
+    @override_settings(**STRIPE_CONFIGURED_SETTINGS)
+    def test_already_purchased_user_is_redirected_without_new_session(self):
+        PremiumPurchase.objects.create(
+            user=self.user,
+            stripe_checkout_session_id='cs_test_existing',
+            amount_paid_cents=4900,
+        )
+        self.client.force_login(self.user)
+
+        with patch('core.views.stripe.checkout.Session.create') as mock_create:
+            response = self.client.post(reverse('core:premium_course_checkout'))
+
+        mock_create.assert_not_called()
+        self.assertRedirects(response, reverse('core:premium_course'))
+
+    @override_settings(**STRIPE_CONFIGURED_SETTINGS)
+    def test_successful_checkout_redirects_to_stripe(self):
+        self.client.force_login(self.user)
+        fake_session = type('FakeSession', (), {'url': 'https://checkout.stripe.com/pay/cs_test_abc'})()
+
+        with patch('core.views.stripe.checkout.Session.create', return_value=fake_session) as mock_create:
+            response = self.client.post(reverse('core:premium_course_checkout'))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, 'https://checkout.stripe.com/pay/cs_test_abc')
+        call_kwargs = mock_create.call_args.kwargs
+        self.assertEqual(call_kwargs['client_reference_id'], str(self.user.id))
+        self.assertEqual(call_kwargs['customer_email'], self.user.email)
+        self.assertEqual(call_kwargs['mode'], 'payment')
+        self.assertEqual(call_kwargs['line_items'][0]['price_data']['unit_amount'], 4900)
+
+    @override_settings(**STRIPE_CONFIGURED_SETTINGS)
+    def test_stripe_error_shows_friendly_message(self):
+        self.client.force_login(self.user)
+
+        with patch('core.views.stripe.checkout.Session.create', side_effect=stripe.error.StripeError('boom')):
+            response = self.client.post(reverse('core:premium_course_checkout'), follow=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Something went wrong starting checkout')
+
+
+class StripeWebhookViewTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            email='learner@example.com',
+            username='learner_one',
+            password='testpass123',
+        )
+
+    def _completed_session_event(self, session_id='cs_test_webhook'):
+        return {
+            'type': 'checkout.session.completed',
+            'data': {
+                'object': {
+                    'id': session_id,
+                    'client_reference_id': str(self.user.id),
+                    'payment_intent': 'pi_test_123',
+                    'amount_total': 4900,
+                },
+            },
+        }
+
+    def test_returns_400_when_webhook_secret_not_configured(self):
+        response = self.client.post(reverse('core:premium_course_webhook'), data='{}', content_type='application/json')
+
+        self.assertEqual(response.status_code, 400)
+
+    @override_settings(**STRIPE_CONFIGURED_SETTINGS)
+    def test_invalid_signature_returns_400(self):
+        with patch('core.views.stripe.Webhook.construct_event', side_effect=stripe.error.SignatureVerificationError('bad sig', 'header')):
+            response = self.client.post(
+                reverse('core:premium_course_webhook'),
+                data='{}',
+                content_type='application/json',
+                HTTP_STRIPE_SIGNATURE='bad',
+            )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(PremiumPurchase.objects.exists())
+
+    @override_settings(**STRIPE_CONFIGURED_SETTINGS)
+    def test_completed_checkout_grants_access(self):
+        event = self._completed_session_event()
+        with patch('core.views.stripe.Webhook.construct_event', return_value=event):
+            response = self.client.post(
+                reverse('core:premium_course_webhook'),
+                data='{}',
+                content_type='application/json',
+                HTTP_STRIPE_SIGNATURE='sig',
+            )
+
+        self.assertEqual(response.status_code, 200)
+        purchase = PremiumPurchase.objects.get(user=self.user)
+        self.assertEqual(purchase.stripe_checkout_session_id, 'cs_test_webhook')
+        self.assertEqual(purchase.amount_paid_cents, 4900)
+        self.assertEqual(purchase.stripe_payment_intent_id, 'pi_test_123')
+
+    @override_settings(**STRIPE_CONFIGURED_SETTINGS)
+    def test_duplicate_webhook_delivery_is_idempotent(self):
+        event = self._completed_session_event()
+        with patch('core.views.stripe.Webhook.construct_event', return_value=event):
+            self.client.post(reverse('core:premium_course_webhook'), data='{}', content_type='application/json', HTTP_STRIPE_SIGNATURE='sig')
+            self.client.post(reverse('core:premium_course_webhook'), data='{}', content_type='application/json', HTTP_STRIPE_SIGNATURE='sig')
+
+        self.assertEqual(PremiumPurchase.objects.filter(user=self.user).count(), 1)
+
+    @override_settings(**STRIPE_CONFIGURED_SETTINGS)
+    def test_unhandled_event_type_is_acknowledged_without_side_effects(self):
+        event = {'type': 'payment_intent.created', 'data': {'object': {}}}
+        with patch('core.views.stripe.Webhook.construct_event', return_value=event):
+            response = self.client.post(
+                reverse('core:premium_course_webhook'),
+                data='{}',
+                content_type='application/json',
+                HTTP_STRIPE_SIGNATURE='sig',
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(PremiumPurchase.objects.exists())
+
+    @override_settings(**STRIPE_CONFIGURED_SETTINGS)
+    def test_missing_client_reference_id_does_not_crash(self):
+        event = self._completed_session_event()
+        event['data']['object']['client_reference_id'] = None
+        with patch('core.views.stripe.Webhook.construct_event', return_value=event):
+            response = self.client.post(
+                reverse('core:premium_course_webhook'),
+                data='{}',
+                content_type='application/json',
+                HTTP_STRIPE_SIGNATURE='sig',
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(PremiumPurchase.objects.exists())
+
+    @override_settings(**STRIPE_CONFIGURED_SETTINGS)
+    def test_endpoint_is_csrf_exempt_for_stripe_delivery(self):
+        strict_client = Client(enforce_csrf_checks=True)
+        event = self._completed_session_event('cs_test_csrf')
+
+        with patch('core.views.stripe.Webhook.construct_event', return_value=event):
+            response = strict_client.post(
+                reverse('core:premium_course_webhook'),
+                data='{}',
+                content_type='application/json',
+                HTTP_STRIPE_SIGNATURE='sig',
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(PremiumPurchase.objects.filter(stripe_checkout_session_id='cs_test_csrf').exists())

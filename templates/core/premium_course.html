@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+
+{% block title %}Python for Absolute Beginners — Full Course{% endblock %}
+{% block meta_description %}The complete Python for Absolute Beginners course: error handling, files, modules, classes, and real mini projects, unlocked after the free lesson path.{% endblock %}
+
+{% block content %}
+<section class="page-hero">
+    <p class="eyebrow">Premium course</p>
+    <h1>Python for Absolute Beginners — the full course.</h1>
+    <p class="page-hero__lede">Everything in the free lesson path is the warm-up. This is the complete course: every section above, plus error handling, files, modules, and an introduction to classes, each with a real mini project — a Mad Libs generator, a number guessing game, a shopping list app, a contact book, a tip calculator, a to-do list that saves your data, and more.</p>
+</section>
+
+{% if not has_access %}
+    {% if request.GET.purchase == 'cancelled' %}
+    <section class="panel">
+        <p>Checkout was cancelled — no charge was made. You can try again whenever you're ready.</p>
+    </section>
+    {% endif %}
+
+    <section class="two-column">
+        <article class="panel">
+            <div class="section-heading">
+                <p class="eyebrow">What you get</p>
+                <h2>The complete curriculum, in one place.</h2>
+            </div>
+            <ul class="stack-list">
+                {% for section in premium_sections %}
+                <li>
+                    <strong>{{ section.title }}</strong>
+                    <span>{{ section.goal|default:"" }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </article>
+        <article class="panel panel--accent">
+            <p class="eyebrow">One-time purchase</p>
+            <h2>{{ price_display }}, yours forever.</h2>
+            <p>No subscription. Pay once and the full course is unlocked on your account permanently.</p>
+            {% if user.is_authenticated %}
+                {% if stripe_configured %}
+                <form method="post" action="{% url 'core:premium_course_checkout' %}">
+                    {% csrf_token %}
+                    <button class="button button--primary" type="submit">Buy Now — {{ price_display }}</button>
+                </form>
+                {% else %}
+                <p class="hint-text">Checkout isn't set up yet — check back soon.</p>
+                {% endif %}
+            {% else %}
+            <a class="button button--primary" href="{% url 'login' %}?next={% url 'core:premium_course' %}">Log In to Purchase</a>
+            {% endif %}
+        </article>
+    </section>
+
+    <section class="panel">
+        <div class="section-heading">
+            <p class="eyebrow">Full curriculum</p>
+            <h2>Every section and lecture.</h2>
+        </div>
+        <div class="module-grid">
+            {% for section in premium_sections %}
+            <article class="info-card">
+                <h3>{{ section.title }}</h3>
+                {% if section.goal %}<p>{{ section.goal }}</p>{% endif %}
+                <ul class="stack-list stack-list--compact">
+                    {% for lecture in section.lectures %}
+                    <li><span>{{ lecture.title }}</span></li>
+                    {% endfor %}
+                    {% for topic in section.topics %}
+                    <li><span>{{ topic }}</span></li>
+                    {% endfor %}
+                </ul>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+{% else %}
+    {% if request.GET.purchase == 'success' %}
+    <section class="panel panel--accent">
+        <p><strong>You're in!</strong> The full course is unlocked below — work through it at your own pace.</p>
+    </section>
+    {% endif %}
+
+    {% for section in premium_sections %}
+    <section class="panel">
+        <div class="section-heading">
+            <p class="eyebrow">{{ section.title }}</p>
+            {% if section.goal %}<h2>{{ section.goal }}</h2>{% endif %}
+        </div>
+
+        {% if section.lectures %}
+            {% for lecture in section.lectures %}
+            <article class="premium-lecture">
+                <h3>{{ lecture.title }}</h3>
+                <div>{{ lecture.body|linebreaks }}</div>
+            </article>
+            {% endfor %}
+        {% endif %}
+
+        {% if section.topics %}
+        <p class="hint-text">This section's full lectures are still being added. Topics covered: {{ section.topics|join:", " }}.</p>
+        {% endif %}
+    </section>
+    {% endfor %}
+{% endif %}
+{% endblock %}

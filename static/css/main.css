@@ -545,6 +545,23 @@ main,
     gap: 0.15rem;
 }
 
+.premium-lecture {
+    padding-top: 1.5rem;
+    margin-top: 1.5rem;
+    border-top: 1px solid var(--line);
+}
+
+.premium-lecture:first-child {
+    padding-top: 0;
+    margin-top: 0;
+    border-top: none;
+}
+
+.premium-lecture p {
+    color: var(--ink-soft);
+    line-height: 1.6;
+}
+
 .milestone-badge {
     display: inline-flex;
     width: fit-content;
