@@ -31,10 +31,10 @@ NAV_PAGES = [
     {'title': 'Start Here', 'url_name': 'core:start_here', 'description': 'A guided first step for absolute beginners.'},
     {'title': 'Lessons', 'url_name': 'core:lessons', 'description': 'Short concepts with examples, challenges, and quizzes.'},
     {'title': 'Challenges', 'url_name': 'core:challenges', 'description': 'Practice cards with hints and expected output.'},
-    {'title': 'Projects', 'url_name': 'core:projects', 'description': 'Mini builds that combine multiple beginner skills.'},
 ]
 
 NAV_PAGES_MORE = [
+    {'title': 'Projects', 'url_name': 'core:projects', 'description': 'Mini builds that combine multiple beginner skills.'},
     {'title': 'Tips', 'url_name': 'core:tips', 'description': 'Quick wins and common-mistake fixes from your social content.'},
     {'title': 'Community', 'url_name': 'core:community', 'description': 'Weekly prompts and learner shoutouts connected to your audience.'},
 ]

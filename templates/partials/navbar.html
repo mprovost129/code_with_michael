@@ -1,7 +1,6 @@
     <header class="site-header">
         <nav class="site-nav">
             <a class="brand-mark" href="{% url 'core:home' %}">
-                <span class="brand-mark__eyebrow">Beginner Python</span>
                 <span class="brand-mark__name">Code with Michael</span>
             </a>
             <div class="site-nav__links">
@@ -20,13 +19,6 @@
                 {% endif %}
             </div>
             <div class="site-nav__actions">
-                {% if social_links %}
-                <div class="site-nav__social">
-                    {% for social in social_links %}
-                    <a href="{{ social.url }}" target="_blank" rel="noopener" aria-label="{{ social.label }}"><i class="bi {{ social.icon }}"></i></a>
-                    {% endfor %}
-                </div>
-                {% endif %}
                 <a
                     class="button button--accent button--small"
                     href="{% url 'core:resources' %}"
