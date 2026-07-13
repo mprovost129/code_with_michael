@@ -211,6 +211,36 @@ class HomeEmailSubscriberTests(TestCase):
         )
         self.assertEqual(len(mail.outbox), 0)
 
+    def test_footer_signup_from_a_non_home_page_creates_subscriber_with_footer_source(self):
+        response = self.client.post(
+            reverse('core:home'),
+            data={'email': 'footerstudent@example.com', 'source': 'footer'},
+            follow=True,
+            HTTP_REFERER='http://testserver/lessons/',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        subscriber = EmailSubscriber.objects.get(email='footerstudent@example.com')
+        self.assertEqual(subscriber.source, 'footer')
+
+    def test_homepage_signup_without_source_defaults_to_homepage(self):
+        self.client.post(
+            reverse('core:home'),
+            data={'email': 'homepagestudent@example.com'},
+        )
+
+        subscriber = EmailSubscriber.objects.get(email='homepagestudent@example.com')
+        self.assertEqual(subscriber.source, 'homepage')
+
+    def test_arbitrary_source_value_is_not_trusted(self):
+        self.client.post(
+            reverse('core:home'),
+            data={'email': 'spoofedsource@example.com', 'source': 'not-a-real-source'},
+        )
+
+        subscriber = EmailSubscriber.objects.get(email='spoofedsource@example.com')
+        self.assertEqual(subscriber.source, 'homepage')
+
 
 class InsightsViewTests(TestCase):
     def setUp(self):
@@ -1621,6 +1651,40 @@ class NavigationContextTests(TestCase):
         self.assertContains(response, 'Start Here')
         self.assertContains(response, 'Tips')
         self.assertContains(response, 'Community')
+
+    def test_footer_content_is_available_on_auth_pages(self):
+        # Django's built-in auth views (login, signup) don't use
+        # NavigationContextMixin, so nav/footer context must come from a
+        # site-wide context processor instead, or the footer renders blank
+        # on these pages.
+        response = self.client.get(reverse('login'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'site-footer__social')
+        self.assertContains(response, 'Code with Michael')
+
+    def test_footer_content_is_available_on_signup_page(self):
+        response = self.client.get(reverse('signup'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'site-footer__social')
+
+    def test_footer_includes_python_logo(self):
+        response = self.client.get(reverse('core:home'))
+
+        self.assertContains(response, 'python-logo-only.svg')
+
+    def test_footer_shows_contact_link_when_marketing_email_configured(self):
+        with override_settings(MARKETING_CONTACT_EMAIL='hello@example.com'):
+            response = self.client.get(reverse('core:home'))
+
+        self.assertContains(response, 'mailto:hello@example.com')
+
+    def test_footer_hides_contact_link_when_marketing_email_not_configured(self):
+        with override_settings(MARKETING_CONTACT_EMAIL=''):
+            response = self.client.get(reverse('core:home'))
+
+        self.assertNotContains(response, 'mailto:')
 
 
 class BootstrapLearningContentCommandTests(TestCase):

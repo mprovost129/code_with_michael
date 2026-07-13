@@ -20,14 +20,7 @@ from .ai import (
     get_quiz_explanation,
     get_tutor_reply,
 )
-from .content import (
-    HOME_FEATURES,
-    NAV_PAGES,
-    NAV_PAGES_MORE,
-    ROADMAP_STEPS,
-    SITE_STATS,
-    SOCIAL_LINKS,
-)
+from .content import HOME_FEATURES, ROADMAP_STEPS
 from .forms import CommunityPostForm, EmailSubscriberForm
 from .models import (
     Challenge,
@@ -63,17 +56,14 @@ from .services import (
 
 
 class NavigationContextMixin:
+    """Ensures a CSRF cookie is set. nav_pages/site_stats/social_links come
+    from the core.context_processors.site_content context processor, which
+    runs on every page (including auth pages that don't use this mixin).
+    """
+
     @method_decorator(ensure_csrf_cookie)
     def dispatch(self, request, *args, **kwargs):
         return super().dispatch(request, *args, **kwargs)
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['nav_pages'] = NAV_PAGES
-        context['nav_pages_more'] = NAV_PAGES_MORE
-        context['site_stats'] = SITE_STATS
-        context['social_links'] = SOCIAL_LINKS
-        return context
 
 
 class HomeView(NavigationContextMixin, TemplateView):
@@ -113,11 +103,12 @@ class HomeView(NavigationContextMixin, TemplateView):
             messages.error(request, 'We could not verify that submission. Please try again.')
             return redirect('core:home')
 
+        source = 'footer' if request.POST.get('source') == 'footer' else 'homepage'
         subscriber, created = EmailSubscriber.objects.get_or_create(
             email=form.cleaned_data['email'],
             defaults={
                 'first_name': form.cleaned_data.get('first_name', ''),
-                'source': 'homepage',
+                'source': source,
                 'is_active': True,
             },
         )
