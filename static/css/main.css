@@ -134,6 +134,14 @@ main,
     flex: 1;
 }
 
+.nav-mobile-toggle {
+    display: none;
+}
+
+.nav-mobile-toggle__panel {
+    display: contents;
+}
+
 .nav-dropdown {
     position: relative;
 }
@@ -984,13 +992,73 @@ button[type="submit"] {
 @media (max-width: 1200px) {
     .site-nav {
         border-radius: 28px;
-        flex-direction: column;
-        align-items: flex-start;
+        position: relative;
     }
 
-    .site-nav__links,
-    .site-nav__actions {
+    .nav-mobile-toggle {
+        display: block;
+        margin-left: auto;
+    }
+
+    .nav-mobile-toggle > summary {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.6rem;
+        height: 2.6rem;
+        border-radius: 50%;
+        background: rgba(16, 37, 66, 0.06);
+        color: var(--ink);
+        font-size: 1.4rem;
+        cursor: pointer;
+        list-style: none;
+        transition: background-color 0.2s ease;
+    }
+
+    .nav-mobile-toggle > summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .nav-mobile-toggle > summary:hover,
+    .nav-mobile-toggle[open] > summary {
+        background: rgba(16, 37, 66, 0.12);
+    }
+
+    .nav-mobile-toggle__panel {
+        display: none;
+    }
+
+    .site-nav:has(.nav-mobile-toggle[open]) .nav-mobile-toggle__panel {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        position: absolute;
+        top: calc(100% + 0.6rem);
+        right: 0;
+        z-index: 30;
+        width: min(85vw, 320px);
+        max-height: calc(100vh - 8rem);
+        overflow-y: auto;
+        padding: 1rem;
+        background: var(--paper-strong);
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow);
+    }
+
+    .nav-mobile-toggle__panel .site-nav__links,
+    .nav-mobile-toggle__panel .site-nav__actions {
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
         width: 100%;
+    }
+
+    .nav-mobile-toggle__panel .site-nav__links a,
+    .nav-mobile-toggle__panel .nav-dropdown > summary,
+    .nav-mobile-toggle__panel .button {
+        width: 100%;
+        text-align: center;
     }
 
     .nav-dropdown__menu {
