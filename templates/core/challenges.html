@@ -18,7 +18,7 @@
         <p>{{ challenge.prompt }}</p>
         <p class="hint-text">Hint: {{ challenge.hint }}</p>
         <a class="button button--ghost" href="{% url 'core:challenge_detail' challenge.slug %}">Open Challenge</a>
-        {% if user.is_authenticated %}
+        {% if user.is_authenticated and challenge.pk %}
             <div class="lesson-callout">
                 {% if progress and progress.is_completed %}
                 <strong>Completed</strong>

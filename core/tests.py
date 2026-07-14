@@ -2019,6 +2019,34 @@ class CurriculumContentIntegrityTests(TestCase):
         self.assertIn('[', challenge['starter_code'])
 
 
+class ChallengeContentFallbackTests(TestCase):
+    """Before bootstrap_learning_content has ever run, the Challenge table is
+    empty and views fall back to the hardcoded core.content.CHALLENGES dicts
+    (which have no `id`/`pk`). Guards against a NoReverseMatch crash on the
+    progress/autosave URLs in that state, for both anonymous and logged-in
+    visitors.
+    """
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username='learner', email='learner@example.com', password='testpass123',
+        )
+
+    def test_challenge_detail_renders_for_anonymous_user_with_no_db_challenges(self):
+        response = self.client.get(reverse('core:challenge_detail', args=['warm-up-greeting']))
+        self.assertEqual(response.status_code, 200)
+
+    def test_challenge_detail_renders_for_authenticated_user_with_no_db_challenges(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('core:challenge_detail', args=['warm-up-greeting']))
+        self.assertEqual(response.status_code, 200)
+
+    def test_challenges_list_renders_for_authenticated_user_with_no_db_challenges(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('core:challenges'))
+        self.assertEqual(response.status_code, 200)
+
+
 class NewLessonStarterCodeOutputTests(TestCase):
     """Actually runs each new lesson/challenge's starter_code in real Python
     and checks stdout matches expected_output exactly, so a content typo

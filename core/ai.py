@@ -28,17 +28,21 @@ def check_rate_limit(request, feature, limit=10, window_seconds=3600):
         identity = f'session:{request.session.session_key}'
 
     key = f'ai_rate:{feature}:{identity}'
-    count = cache.get(key)
-    if count is None:
-        cache.set(key, 1, timeout=window_seconds)
-        return False
-    if count >= limit:
-        return True
     try:
-        cache.incr(key)
-    except ValueError:
-        cache.set(key, 1, timeout=window_seconds)
-    return False
+        count = cache.get(key)
+        if count is None:
+            cache.set(key, 1, timeout=window_seconds)
+            return False
+        if count >= limit:
+            return True
+        try:
+            cache.incr(key)
+        except ValueError:
+            cache.set(key, 1, timeout=window_seconds)
+        return False
+    except Exception:
+        logger.warning('Rate limit cache unavailable for %s; allowing request through.', feature, exc_info=True)
+        return False
 
 
 def _complete(system, messages, max_tokens=500):

@@ -101,11 +101,10 @@
 
     <form
         method="post"
-        action="{% url 'core:challenge_progress_update' challenge.id %}"
+        {% if challenge.pk %}action="{% url 'core:challenge_progress_update' challenge.id %}"{% endif %}
         class="panel panel--editor"
         data-python-runner
-        data-challenge-autosave-form
-        data-autosave-url="{% url 'core:challenge_autosave' challenge.id %}"
+        {% if challenge.pk %}data-challenge-autosave-form data-autosave-url="{% url 'core:challenge_autosave' challenge.id %}"{% endif %}
         data-hint-title="{{ challenge.title }}"
         data-hint-goal="{{ challenge.prompt }}"
     >
@@ -134,7 +133,7 @@
             <pre data-python-output>{% if challenge.expected_output %}{{ challenge.expected_output }}{% else %}Run the starter code to see output here.{% endif %}</pre>
         </div>
         <p class="ai-hint" data-ai-hint-output hidden></p>
-        {% if user.is_authenticated %}
+        {% if user.is_authenticated and challenge.pk %}
         <p class="editor-note" data-autosave-status>Autosave is ready. Your draft will save a moment after you stop typing.</p>
         <div class="button-row">
             <button class="button button--ghost" type="submit" name="action" value="save">Save Draft</button>
