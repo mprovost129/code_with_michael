@@ -13,14 +13,15 @@
     {% endif %}
     {% if user.is_authenticated and lesson_progress %}
     <div class="progress-banner">
-        {% if lesson_progress.is_completed %}
-        <span class="progress-pill progress-pill--complete">Completed</span>
-        {% elif lesson_progress.quiz_passed_at %}
-        <span class="progress-pill progress-pill--complete">Quiz Passed</span>
-        {% else %}
-        <span class="progress-pill">In Progress</span>
-        {% endif %}
-        <form method="post" action="{% url 'core:lesson_progress_update' lesson.slug %}">
+        <span class="progress-pill {% if lesson_progress.is_completed or lesson_progress.quiz_passed_at %}progress-pill--complete{% endif %}" data-progress-pill>
+            {% if lesson_progress.is_completed %}Completed{% elif lesson_progress.quiz_passed_at %}Quiz Passed{% else %}In Progress{% endif %}
+        </span>
+        <form
+            method="post"
+            action="{% url 'core:lesson_progress_update' lesson.slug %}"
+            data-lesson-progress-form
+            data-quiz-passed="{% if lesson_progress.quiz_passed_at %}true{% else %}false{% endif %}"
+        >
             {% csrf_token %}
             {% if lesson_progress.is_completed %}
             <input type="hidden" name="action" value="restart">
@@ -30,6 +31,7 @@
             <button class="button button--primary button--small" type="submit">Mark Complete</button>
             {% endif %}
         </form>
+        <p class="progress-toast" data-progress-toast hidden></p>
     </div>
     {% elif not user.is_authenticated %}
     <p><a href="{% url 'signup' %}">Create a free account</a> to save your progress as you work through lessons.</p>

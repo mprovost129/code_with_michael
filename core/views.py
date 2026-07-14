@@ -497,6 +497,7 @@ class LessonProgressUpdateView(LoginRequiredMixin, View):
         )
 
         action = request.POST.get('action')
+        message_text = None
         if action == 'complete':
             progress.is_completed = True
             progress.completed_at = timezone.now()
@@ -514,17 +515,24 @@ class LessonProgressUpdateView(LoginRequiredMixin, View):
                 completed_challenge_ids=completed_challenge_ids,
             )
             if milestone and milestone['status'] == 'completed':
-                messages.success(request, f'Lesson marked complete. {milestone["celebration"]}.')
+                message_text = f'Lesson marked complete. {milestone["celebration"]}.'
             elif challenge is not None:
-                messages.success(request, f'Lesson marked complete. Next up: {challenge.title} will lock in this milestone.')
+                message_text = f'Lesson marked complete. Next up: {challenge.title} will lock in this milestone.'
             else:
-                messages.success(request, 'Lesson marked complete. Nice work.')
+                message_text = 'Lesson marked complete. Nice work.'
         elif action == 'restart':
             progress.is_completed = False
             progress.completed_at = None
             progress.save(update_fields=['is_completed', 'completed_at', 'last_viewed_at'])
-            messages.info(request, 'Lesson reset. You can work through it again anytime.')
+            message_text = 'Lesson reset. You can work through it again anytime.'
 
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'ok': True, 'is_completed': progress.is_completed, 'message': message_text})
+
+        if action == 'complete':
+            messages.success(request, message_text)
+        elif action == 'restart':
+            messages.info(request, message_text)
         return redirect('core:lesson_detail', slug=lesson.slug)
 
 

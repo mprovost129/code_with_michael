@@ -484,6 +484,24 @@ class UserLessonProgressTests(TestCase):
         self.assertTrue(progress.is_completed)
         self.assertIsNotNone(progress.completed_at)
 
+    def test_mark_complete_returns_json_for_ajax_request(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('core:lesson_progress_update', args=[self.lesson.slug]),
+            data={'action': 'complete'},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/json')
+        data = response.json()
+        self.assertTrue(data['ok'])
+        self.assertTrue(data['is_completed'])
+        self.assertIn('Lesson marked complete', data['message'])
+
+        progress = UserLessonProgress.objects.get(user=self.user, lesson=self.lesson)
+        self.assertTrue(progress.is_completed)
+
     def test_mark_complete_celebrates_finished_milestone_when_challenge_is_done(self):
         self.client.force_login(self.user)
         UserChallengeProgress.objects.create(

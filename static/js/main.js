@@ -554,12 +554,83 @@ function setupTrackedViews() {
     });
 }
 
+function setupLessonProgressForm(form) {
+    const banner = form.closest(".progress-banner");
+    const pill = banner ? banner.querySelector("[data-progress-pill]") : null;
+    const toast = banner ? banner.querySelector("[data-progress-toast]") : null;
+    const actionInput = form.querySelector('input[name="action"]');
+    const submitButton = form.querySelector('button[type="submit"]');
+
+    if (!pill || !toast || !actionInput || !submitButton) {
+        return;
+    }
+
+    // form.action is shadowed by the hidden <input name="action"> below (a
+    // named form control shadows the form element's built-in .action
+    // property), so the real URL must be read from the content attribute.
+    const submitUrl = form.getAttribute("action");
+    let toastTimeoutId = null;
+
+    form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        submitButton.disabled = true;
+
+        try {
+            const response = await fetch(submitUrl, {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": getCookie("csrftoken"),
+                    "X-Requested-With": "XMLHttpRequest",
+                },
+                credentials: "same-origin",
+                body: new FormData(form),
+            });
+
+            if (!response.ok) {
+                throw new Error("Request failed.");
+            }
+
+            const data = await response.json();
+
+            if (data.is_completed) {
+                pill.textContent = "Completed";
+                pill.classList.add("progress-pill--complete");
+                actionInput.value = "restart";
+                submitButton.textContent = "Reset Lesson";
+                submitButton.className = "button button--ghost button--small";
+            } else {
+                const quizPassed = form.dataset.quizPassed === "true";
+                pill.textContent = quizPassed ? "Quiz Passed" : "In Progress";
+                pill.classList.toggle("progress-pill--complete", quizPassed);
+                actionInput.value = "complete";
+                submitButton.textContent = "Mark Complete";
+                submitButton.className = "button button--primary button--small";
+            }
+
+            if (data.message) {
+                toast.textContent = data.message;
+                toast.hidden = false;
+                window.clearTimeout(toastTimeoutId);
+                toastTimeoutId = window.setTimeout(() => {
+                    toast.hidden = true;
+                }, 4000);
+            }
+        } catch (error) {
+            toast.textContent = "Something went wrong updating your progress. Please try again.";
+            toast.hidden = false;
+        } finally {
+            submitButton.disabled = false;
+        }
+    });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     setupNavDropdowns();
     setupTrackedViews();
     setupClickTracking();
     document.querySelectorAll("[data-python-runner]").forEach(setupPythonRunner);
     document.querySelectorAll("[data-challenge-autosave-form]").forEach(setupChallengeAutosave);
+    document.querySelectorAll("[data-lesson-progress-form]").forEach(setupLessonProgressForm);
     document.querySelectorAll("[data-quiz-question]").forEach(setupQuizExplain);
     document.querySelectorAll("[data-tutor-chat]").forEach(setupTutorChat);
     document.querySelectorAll("[data-recaptcha-action]").forEach(setupRecaptchaForm);

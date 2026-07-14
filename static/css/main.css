@@ -343,6 +343,16 @@ main,
     color: var(--brand-dark);
 }
 
+.progress-toast {
+    flex-basis: 100%;
+    margin: 0;
+    padding: 0.6rem 0.9rem;
+    border-radius: var(--radius-sm);
+    background: #d1fae5;
+    color: #065f46;
+    font-weight: 600;
+}
+
 .hero,
 .two-column,
 .lesson-layout,
