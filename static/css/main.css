@@ -1135,3 +1135,50 @@ button[type="submit"] {
         padding: 2rem;
     }
 }
+
+/* ── Mini-challenge result banner ──────────────────────────────────────── */
+.panel--challenge {
+    border-left: 4px solid var(--accent, #3778c2);
+}
+
+.challenge-editor-wrap {
+    margin-top: 1.5rem;
+}
+
+.challenge-result {
+    margin-top: 1.5rem;
+    padding: 1rem 1.25rem;
+    border-radius: var(--radius, 8px);
+    background: var(--surface-2, #1e2433);
+    border: 1px solid var(--border, #2a3147);
+}
+
+.challenge-result--success {
+    border-color: #2ecc71;
+    background: rgba(46, 204, 113, 0.08);
+}
+
+.challenge-result--fail {
+    border-color: #e74c3c;
+    background: rgba(231, 76, 60, 0.08);
+}
+
+.challenge-result__message {
+    font-weight: 600;
+    margin: 0 0 0.75rem;
+}
+
+.challenge-result--success .challenge-result__message {
+    color: #2ecc71;
+}
+
+.challenge-result--fail .challenge-result__message {
+    color: #e74c3c;
+}
+
+.challenge-result__actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-top: 0.5rem;
+}

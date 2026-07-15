@@ -214,56 +214,12 @@ class LessonDetailView(NavigationContextMixin, TemplateView):
                 context['lesson_position'] = lesson_index + 1
                 context['total_lessons'] = len(lessons)
             if self.request.user.is_authenticated:
+                # get_or_create marks the lesson as started (tracks last_viewed_at).
                 progress, _ = UserLessonProgress.objects.get_or_create(
                     user=self.request.user,
                     lesson=lesson,
                 )
                 context['lesson_progress'] = progress
-                completed_lesson_ids = set(
-                    UserLessonProgress.objects.filter(user=self.request.user, is_completed=True).values_list('lesson_id', flat=True)
-                )
-                completed_challenge_ids = set(
-                    UserChallengeProgress.objects.filter(user=self.request.user, is_completed=True).values_list('challenge_id', flat=True)
-                )
-                context['lesson_milestone'] = get_lesson_milestone(
-                    lesson,
-                    completed_lesson_ids=completed_lesson_ids,
-                    completed_challenge_ids=completed_challenge_ids,
-                )
-                challenge_progress = None
-                challenge_complete = False
-                if practice_challenge is not None and hasattr(practice_challenge, 'pk'):
-                    challenge_progress = UserChallengeProgress.objects.filter(
-                        user=self.request.user,
-                        challenge=practice_challenge,
-                    ).first()
-                    challenge_complete = bool(challenge_progress and challenge_progress.is_completed)
-                quiz_complete = bool(progress.quiz_passed_at)
-                completion_stack = [
-                    {
-                        'label': 'Lesson marked complete',
-                        'done': progress.is_completed,
-                    },
-                    {
-                        'label': 'Quick quiz passed',
-                        'done': quiz_complete,
-                    },
-                ]
-                if practice_challenge is not None:
-                    completion_stack.append({
-                        'label': f'Paired challenge complete: {practice_challenge.title}',
-                        'done': challenge_complete,
-                    })
-                context['lesson_completion_stack'] = completion_stack
-                context['lesson_stack_complete_count'] = sum(1 for item in completion_stack if item['done'])
-                if not progress.is_completed:
-                    context['lesson_next_action'] = 'Mark this lesson complete next.'
-                elif not quiz_complete:
-                    context['lesson_next_action'] = 'Pass the quick quiz next.'
-                elif practice_challenge is not None and not challenge_complete:
-                    context['lesson_next_action'] = f'Open {practice_challenge.title} next.'
-                else:
-                    context['lesson_next_action'] = 'This full lesson rep is complete.'
         return context
 
 
@@ -534,6 +490,61 @@ class LessonProgressUpdateView(LoginRequiredMixin, View):
         elif action == 'restart':
             messages.info(request, message_text)
         return redirect('core:lesson_detail', slug=lesson.slug)
+
+
+class LessonMiniChallengeView(View):
+    """Receives the learner's code output for the inline mini-challenge,
+    compares it against challenge_expected_output, and auto-completes the
+    lesson when it matches. Always returns JSON so the template JS can
+    react without a page reload.
+    """
+
+    http_method_names = ['post']
+
+    def post(self, request, slug, *args, **kwargs):
+        lesson = Lesson.objects.filter(slug=slug, is_published=True).first()
+        if lesson is None:
+            return JsonResponse({'ok': False, 'error': 'Lesson not found.'}, status=404)
+
+        try:
+            body = json.loads(request.body)
+        except (json.JSONDecodeError, ValueError):
+            return JsonResponse({'ok': False, 'error': 'Invalid request body.'}, status=400)
+
+        user_output = (body.get('output') or '').strip()
+        expected = (lesson.challenge_expected_output or '').strip()
+
+        if not expected:
+            # No expected output configured yet, so treat this as a free-form attempt.
+            return JsonResponse({'ok': True, 'passed': False, 'message': 'No expected output is set for this challenge yet.'})
+
+        # Compare line-by-line with each line right-stripped so a stray trailing
+        # space (a very common beginner slip) does not fail an otherwise correct
+        # answer. Content and line order still must match exactly.
+        def _normalize(text):
+            return '\n'.join(line.rstrip() for line in text.splitlines())
+
+        passed = _normalize(user_output) == _normalize(expected)
+
+        result = {'ok': True, 'passed': passed}
+
+        if passed and request.user.is_authenticated:
+            progress, _ = UserLessonProgress.objects.get_or_create(
+                user=request.user,
+                lesson=lesson,
+            )
+            if not progress.is_completed:
+                progress.is_completed = True
+                progress.completed_at = timezone.now()
+                progress.save(update_fields=['is_completed', 'completed_at', 'last_viewed_at'])
+            result['lesson_completed'] = True
+            result['message'] = 'Challenge passed! Lesson marked complete.'
+        elif passed:
+            result['message'] = 'Challenge passed! Sign in to save your progress.'
+        else:
+            result['message'] = 'Not quite. Check your output and try again.'
+
+        return JsonResponse(result)
 
 
 class LessonQuizSubmitView(View):

@@ -78,6 +78,8 @@ class Command(BaseCommand):
                 'common_mistake': lesson_data['common_mistake'],
                 'mini_challenge': lesson_data['mini_challenge'],
                 'expected_output': lesson_data['expected_output'],
+                'challenge_starter_code': lesson_data.get('challenge_starter_code', ''),
+                'challenge_expected_output': lesson_data.get('challenge_expected_output', ''),
                 'practice_challenge_slug': lesson_data.get('practice_challenge_slug', ''),
                 'quiz': lesson_data['quiz'],
                 'is_featured': is_featured,

@@ -34,6 +34,28 @@ class LessonAdmin(admin.ModelAdmin):
     search_fields = ('title', 'summary', 'goal', 'slug')
     ordering = ('module__number', 'display_order')
     prepopulated_fields = {'slug': ('title',)}
+    fieldsets = (
+        ('Basics', {
+            'fields': ('module', 'title', 'slug', 'summary', 'duration', 'goal', 'display_order', 'is_featured', 'is_published'),
+        }),
+        ('Step 1 - Read and Learn', {
+            'fields': ('explanation', 'starter_code', 'expected_output', 'try_it', 'common_mistake'),
+            'description': 'starter_code and expected_output power the read-along example editor.',
+        }),
+        ('Step 2 - Mini Challenge (auto-completes the lesson)', {
+            'fields': ('mini_challenge', 'challenge_starter_code', 'challenge_expected_output'),
+            'description': 'challenge_expected_output is the exact output the learner must produce. '
+                           'Leave challenge_starter_code blank to reuse the Step 1 starter_code as the scaffold. '
+                           'If challenge_expected_output is blank, the lesson cannot auto-complete.',
+        }),
+        ('Step 3 - Quiz', {
+            'fields': ('quiz',),
+        }),
+        ('Linked practice challenge (optional)', {
+            'fields': ('practice_challenge_slug',),
+            'classes': ('collapse',),
+        }),
+    )
 
 
 @admin.register(Challenge)

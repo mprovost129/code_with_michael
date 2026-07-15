@@ -530,32 +530,73 @@ class UserLessonProgressTests(TestCase):
         self.assertIsNone(first_response.context.get('previous_lesson'))
         self.assertEqual(second_response.context['previous_lesson'], self.lesson)
 
-    def test_lesson_detail_includes_practice_challenge(self):
+    def test_lesson_detail_shows_mini_challenge_section(self):
         self.client.force_login(self.user)
 
         response = self.client.get(reverse('core:lesson_detail', args=[self.lesson.slug]))
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['practice_challenge'], self.challenge)
-        self.assertContains(response, 'Practice This Next')
-        self.assertContains(response, self.challenge.title)
+        # The inline mini-challenge replaces the old separate practice section.
+        self.assertContains(response, 'Step 2 - Mini Challenge')
+        self.assertContains(response, self.lesson.mini_challenge)
+        self.assertContains(response, 'data-mini-challenge')
+        self.assertContains(response, reverse('core:lesson_mini_challenge', args=[self.lesson.slug]))
 
-    def test_lesson_detail_shows_milestone_banner_when_challenge_is_done(self):
+    def test_mini_challenge_correct_output_completes_lesson(self):
         self.client.force_login(self.user)
-        UserChallengeProgress.objects.create(
-            user=self.user,
-            challenge=self.challenge,
-            is_completed=True,
-            response_text='done',
+        self.lesson.challenge_expected_output = 'Hello there'
+        self.lesson.save(update_fields=['challenge_expected_output'])
+
+        response = self.client.post(
+            reverse('core:lesson_mini_challenge', args=[self.lesson.slug]),
+            data=json.dumps({'output': 'Hello there'}),
+            content_type='application/json',
         )
 
-        response = self.client.get(reverse('core:lesson_detail', args=[self.lesson.slug]))
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['passed'])
+        self.assertTrue(data['lesson_completed'])
+        self.assertTrue(
+            UserLessonProgress.objects.filter(
+                user=self.user, lesson=self.lesson, is_completed=True
+            ).exists()
+        )
+
+    def test_mini_challenge_wrong_output_does_not_complete_lesson(self):
+        self.client.force_login(self.user)
+        self.lesson.challenge_expected_output = 'Hello there'
+        self.lesson.save(update_fields=['challenge_expected_output'])
+
+        response = self.client.post(
+            reverse('core:lesson_mini_challenge', args=[self.lesson.slug]),
+            data=json.dumps({'output': 'Goodbye'}),
+            content_type='application/json',
+        )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Milestone Status')
-        self.assertContains(response, 'Milestone 1 underway')
+        data = response.json()
+        self.assertFalse(data['passed'])
+        self.assertFalse(
+            UserLessonProgress.objects.filter(
+                user=self.user, lesson=self.lesson, is_completed=True
+            ).exists()
+        )
 
-    def test_lesson_detail_shows_completion_stack(self):
+    def test_mini_challenge_ignores_trailing_whitespace(self):
+        self.client.force_login(self.user)
+        self.lesson.challenge_expected_output = 'Hello there'
+        self.lesson.save(update_fields=['challenge_expected_output'])
+
+        response = self.client.post(
+            reverse('core:lesson_mini_challenge', args=[self.lesson.slug]),
+            data=json.dumps({'output': 'Hello there   '}),
+            content_type='application/json',
+        )
+
+        self.assertTrue(response.json()['passed'])
+
+    def test_lesson_detail_shows_completed_state_when_done(self):
         self.client.force_login(self.user)
         UserLessonProgress.objects.create(
             user=self.user,
@@ -567,11 +608,7 @@ class UserLessonProgressTests(TestCase):
         response = self.client.get(reverse('core:lesson_detail', args=[self.lesson.slug]))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Completion Stack')
-        self.assertContains(response, '2 of 3 steps finished')
-        self.assertContains(response, 'Paired challenge complete: Warm-up Greeting')
-        self.assertContains(response, 'Recommended next action:')
-        self.assertContains(response, 'Open Warm-up Greeting next.')
+        self.assertContains(response, 'already completed this lesson')
 
     def test_quiz_submission_updates_saved_scores(self):
         self.client.force_login(self.user)
@@ -932,6 +969,9 @@ class UserLessonProgressTests(TestCase):
 
 class CommunityPostFeatureTests(TestCase):
     def setUp(self):
+        # Clear the cache so the cache-backed rate limiter does not carry
+        # counts over from earlier tests in the same run.
+        cache.clear()
         self.client = Client()
         self.user = get_user_model().objects.create_user(
             email='learner@example.com',

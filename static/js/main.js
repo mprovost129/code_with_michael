@@ -624,6 +624,65 @@ function setupLessonProgressForm(form) {
     });
 }
 
+// ── Mini-challenge auto-complete ──────────────────────────────────────────
+// When the learner runs their code in the challenge editor, this function
+// sends the output to the server, compares it to the expected output, and
+// marks the lesson complete on a match, all without a page reload.
+function setupMiniChallenge(section) {
+    const submitUrl = section.dataset.miniChallengeUrl;
+    if (!submitUrl) return;
+
+    const challengePanel = section.querySelector("[data-python-runner][data-runner-mode='challenge']");
+    if (!challengePanel) return;
+
+    const runButton = challengePanel.querySelector("[data-run-python]");
+    const outputEl = challengePanel.querySelector("[data-python-output]");
+    const resultBanner = section.querySelector("[data-challenge-result]");
+    const resultMessage = section.querySelector("[data-challenge-result-message]");
+    const resultActions = section.querySelector("[data-challenge-result-actions]");
+
+    if (!runButton || !outputEl || !resultBanner || !resultMessage) return;
+
+    // Intercept after Pyodide finishes. We hook a MutationObserver on the
+    // output element so we catch the result the moment it is written.
+    let lastOutput = "";
+    const observer = new MutationObserver(async () => {
+        const currentOutput = outputEl.textContent.trim();
+        // Skip if output hasn't changed or is still a loading message.
+        if (currentOutput === lastOutput || currentOutput === "Loading Python runtime...") return;
+        lastOutput = currentOutput;
+
+        // Only submit when the button triggered the run (not reset).
+        if (runButton.disabled) return; // still running, so wait
+
+        try {
+            const response = await fetch(submitUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCookie("csrftoken"),
+                },
+                credentials: "same-origin",
+                body: JSON.stringify({ output: currentOutput }),
+            });
+            const data = await response.json();
+
+            resultBanner.hidden = false;
+            resultBanner.classList.toggle("challenge-result--success", !!data.passed);
+            resultBanner.classList.toggle("challenge-result--fail", !data.passed);
+            resultMessage.textContent = data.message || "";
+
+            if (data.passed && resultActions) {
+                resultActions.hidden = false;
+            }
+        } catch (_err) {
+            // Silently skip so the learner can still use the page normally.
+        }
+    });
+
+    observer.observe(outputEl, { childList: true, subtree: true, characterData: true });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     setupNavDropdowns();
     setupTrackedViews();
@@ -634,4 +693,5 @@ document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll("[data-quiz-question]").forEach(setupQuizExplain);
     document.querySelectorAll("[data-tutor-chat]").forEach(setupTutorChat);
     document.querySelectorAll("[data-recaptcha-action]").forEach(setupRecaptchaForm);
+    document.querySelectorAll("[data-mini-challenge]").forEach(setupMiniChallenge);
 });

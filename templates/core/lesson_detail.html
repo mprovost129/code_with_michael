@@ -5,107 +5,45 @@
 
 {% block content %}
 <section class="page-hero" data-track-view="lesson_view" data-lesson-slug="{{ lesson.slug }}">
-    <p class="eyebrow">Lesson prototype</p>
+    <p class="eyebrow">
+        {% if lesson_position and total_lessons %}Lesson {{ lesson_position }} of {{ total_lessons }}{% else %}Lesson{% endif %}
+    </p>
     <h1>{{ lesson.title }}</h1>
     <p class="page-hero__lede">{{ lesson.summary }}</p>
-    {% if lesson_position and total_lessons %}
-    <p>Lesson {{ lesson_position }} of {{ total_lessons }} in the beginner path.</p>
-    {% endif %}
-    {% if user.is_authenticated and lesson_progress %}
-    <div class="progress-banner">
-        <span class="progress-pill {% if lesson_progress.is_completed or lesson_progress.quiz_passed_at %}progress-pill--complete{% endif %}" data-progress-pill>
-            {% if lesson_progress.is_completed %}Completed{% elif lesson_progress.quiz_passed_at %}Quiz Passed{% else %}In Progress{% endif %}
-        </span>
-        <form
-            method="post"
-            action="{% url 'core:lesson_progress_update' lesson.slug %}"
-            data-lesson-progress-form
-            data-quiz-passed="{% if lesson_progress.quiz_passed_at %}true{% else %}false{% endif %}"
-        >
-            {% csrf_token %}
-            {% if lesson_progress.is_completed %}
-            <input type="hidden" name="action" value="restart">
-            <button class="button button--ghost button--small" type="submit">Reset Lesson</button>
-            {% else %}
-            <input type="hidden" name="action" value="complete">
-            <button class="button button--primary button--small" type="submit">Mark Complete</button>
-            {% endif %}
-        </form>
-        <p class="progress-toast" data-progress-toast hidden></p>
-    </div>
-    {% elif not user.is_authenticated %}
+
+    {% if not user.is_authenticated %}
     <p><a href="{% url 'signup' %}">Create a free account</a> to save your progress as you work through lessons.</p>
     {% endif %}
 </section>
 
-{% if user.is_authenticated and lesson_milestone %}
-<section class="panel {% if lesson_milestone.status == 'completed' %}panel--accent{% endif %}">
-    <p class="eyebrow">Milestone Status</p>
-    <h2>{{ lesson_milestone.celebration }}</h2>
-    {% if lesson_milestone.status == 'completed' %}
-    <p>You completed both this lesson and its paired challenge. That full rep is locked in.</p>
-    {% elif lesson_milestone.status == 'in_progress' and practice_challenge %}
-    <p>You have momentum here. Finishing <strong>{{ practice_challenge.title }}</strong> will complete this milestone.</p>
-    {% else %}
-    <p>This lesson is part of your next milestone on the beginner path.</p>
-    {% endif %}
-</section>
-{% endif %}
-
-{% if user.is_authenticated and lesson_completion_stack %}
-<section class="panel">
-    <p class="eyebrow">Completion Stack</p>
-    <h2>{{ lesson_stack_complete_count }} of {{ lesson_completion_stack|length }} steps finished</h2>
-    {% if lesson_next_action %}
-    <p class="hint-text"><strong>Recommended next action:</strong> {{ lesson_next_action }}</p>
-    {% endif %}
-    <ul class="stack-list stack-list--compact">
-        {% for item in lesson_completion_stack %}
-        <li>
-            <strong>{% if item.done %}Complete{% else %}Still to do{% endif %}</strong>
-            <span>{{ item.label }}</span>
-        </li>
-        {% endfor %}
-    </ul>
-</section>
-{% endif %}
-
+{# ── STEP 1: READ AND LEARN ───────────────────────────────────────────────── #}
 <section class="lesson-layout">
     <article class="panel lesson-panel">
-        <p class="eyebrow">Goal</p>
+        <p class="eyebrow">Step 1 - Read and Learn</p>
         <h2>{{ lesson.goal }}</h2>
         <p>{{ lesson.explanation|linebreaksbr }}</p>
-
-        <div class="lesson-callout">
-            <strong>Try it:</strong>
-            <p>{{ lesson.try_it|linebreaksbr }}</p>
-        </div>
 
         <div class="lesson-callout lesson-callout--warning">
             <strong>Common mistake:</strong>
             <p>{{ lesson.common_mistake|linebreaksbr }}</p>
         </div>
-
-        <div class="lesson-callout">
-            <strong>Mini challenge:</strong>
-            <p>{{ lesson.mini_challenge|linebreaksbr }}</p>
-        </div>
     </article>
 
-    <article class="panel panel--editor" data-python-runner data-lesson-slug="{{ lesson.slug }}" data-hint-title="{{ lesson.title }}" data-hint-goal="{{ lesson.goal }}">
+    {# Read-along example code. Learner runs it to see what the output looks like #}
+    <article class="panel panel--editor" data-python-runner data-runner-mode="example" data-lesson-slug="{{ lesson.slug }}" data-hint-title="{{ lesson.title }}" data-hint-goal="{{ lesson.goal }}">
         <div class="editor-toolbar">
             <div>
-                <p class="editor-toolbar__label">Runnable code</p>
-                <h2>Press Run and change one line.</h2>
+                <p class="editor-toolbar__label">Example code</p>
+                <h2>Press Run to see it in action.</h2>
             </div>
             <button class="button button--primary" type="button" data-run-python>Run Code</button>
         </div>
 
-        <label class="visually-hidden" for="lesson-code">Python code editor</label>
-        <textarea id="lesson-code" class="code-editor" data-python-source>{{ lesson.starter_code }}</textarea>
+        <label class="visually-hidden" for="lesson-example-code">Example code editor</label>
+        <textarea id="lesson-example-code" class="code-editor" data-python-source>{{ lesson.starter_code }}</textarea>
 
-        <label class="editor-stdin__label" for="lesson-stdin">Sample input (optional, one value per line, used if your code calls input())</label>
-        <textarea id="lesson-stdin" class="editor-stdin" data-python-stdin rows="2" placeholder="e.g. Michael"></textarea>
+        <label class="editor-stdin__label" for="lesson-example-stdin">Sample input (optional)</label>
+        <textarea id="lesson-example-stdin" class="editor-stdin" data-python-stdin rows="2" placeholder="e.g. Michael"></textarea>
 
         <div class="editor-output">
             <div class="editor-output__meta">
@@ -116,30 +54,89 @@
             <pre data-python-output>{{ lesson.expected_output }}</pre>
         </div>
         <p class="ai-hint" data-ai-hint-output hidden></p>
-        <p class="editor-note">Pyodide loads only on this page. On phones, learners can still read the lesson and copy the code later if the editor feels cramped.</p>
+        <p class="editor-note">Try changing a value and pressing Run again to see what happens.</p>
     </article>
 </section>
 
-{% if practice_challenge %}
-<section class="panel panel--accent">
-    <p class="eyebrow">Practice This Next</p>
-    <h2>{{ practice_challenge.title }}</h2>
-    <p>{{ practice_challenge.prompt }}</p>
-    <p class="hint-text">Move from reading into practice while the concept is still fresh.</p>
-    <a class="button button--primary" href="{% url 'core:challenge_detail' practice_challenge.slug %}">Open Practice Challenge</a>
-</section>
-{% endif %}
+{# ── STEP 2: MINI CHALLENGE ───────────────────────────────────────────────── #}
+<section
+    class="panel panel--challenge"
+    id="mini-challenge"
+    data-mini-challenge
+    data-mini-challenge-url="{% url 'core:lesson_mini_challenge' lesson.slug %}"
+    data-lesson-slug="{{ lesson.slug }}"
+>
+    <p class="eyebrow">Step 2 - Mini Challenge</p>
+    <h2>{{ lesson.mini_challenge }}</h2>
 
-<section class="quiz-section">
-    <div class="section-heading">
-        <p class="eyebrow">Quick quiz</p>
-        <h2>Check understanding without pressure.</h2>
+    {% if lesson.try_it %}
+    <p class="hint-text"><strong>Tip:</strong> {{ lesson.try_it }}</p>
+    {% endif %}
+
+    <div class="challenge-editor-wrap" data-python-runner data-runner-mode="challenge" data-lesson-slug="{{ lesson.slug }}">
+        <div class="editor-toolbar">
+            <div>
+                <p class="editor-toolbar__label">Your code</p>
+                <h2>Write your solution below.</h2>
+            </div>
+            <button class="button button--primary" type="button" data-run-python>Run and Check</button>
+        </div>
+
+        <label class="visually-hidden" for="challenge-code">Challenge code editor</label>
+        <textarea id="challenge-code" class="code-editor" data-python-source>{{ lesson.challenge_starter_code|default:lesson.starter_code }}</textarea>
+
+        <label class="editor-stdin__label" for="challenge-stdin">Sample input (optional)</label>
+        <textarea id="challenge-stdin" class="editor-stdin" data-python-stdin rows="2" placeholder="e.g. Michael"></textarea>
+
+        <div class="editor-output">
+            <div class="editor-output__meta">
+                <span>Output</span>
+                <button class="button button--ghost button--small" type="button" data-reset-python>Reset</button>
+                <button class="button button--ghost button--small" type="button" data-ai-hint data-hint-url="{% url 'core:ai_code_hint' %}">Get a Hint</button>
+            </div>
+            <pre data-python-output></pre>
+        </div>
+        <p class="ai-hint" data-ai-hint-output hidden></p>
     </div>
+
+    {# Result banner, shown after submission #}
+    <div class="challenge-result" data-challenge-result hidden>
+        <p class="challenge-result__message" data-challenge-result-message></p>
+        <div class="challenge-result__actions" data-challenge-result-actions hidden>
+            <a class="button button--primary" href="#quiz-section">Continue to Quiz</a>
+        </div>
+    </div>
+
+    {# Already completed state #}
+    {% if user.is_authenticated and lesson_progress and lesson_progress.is_completed %}
+    <div class="challenge-result challenge-result--success">
+        <p class="challenge-result__message">You already completed this lesson. The quiz is below whenever you are ready.</p>
+        <div class="challenge-result__actions">
+            <a class="button button--ghost button--small" href="#quiz-section">Jump to Quiz</a>
+            <form method="post" action="{% url 'core:lesson_progress_update' lesson.slug %}" style="display:inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="restart">
+                <button class="button button--ghost button--small" type="submit">Reset Lesson</button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+</section>
+
+{# ── STEP 3: QUIZ ────────────────────────────────────────────────────────── #}
+<section class="quiz-section" id="quiz-section">
+    <div class="section-heading">
+        <p class="eyebrow">Step 3 - Quiz</p>
+        <h2>Check your understanding.</h2>
+        <p>Complete the challenge above first, then answer these questions to wrap up the lesson.</p>
+    </div>
+
     {% if user.is_authenticated and lesson_progress.quiz_attempts %}
     <article class="panel">
-        <p><strong>Saved quiz progress:</strong> last score {{ lesson_progress.last_quiz_score }}%, best score {{ lesson_progress.best_quiz_score }}%, attempts {{ lesson_progress.quiz_attempts }}.</p>
+        <p><strong>Previous quiz:</strong> last score {{ lesson_progress.last_quiz_score }}%, best {{ lesson_progress.best_quiz_score }}%, attempts {{ lesson_progress.quiz_attempts }}.</p>
     </article>
     {% endif %}
+
     <form method="post" action="{% url 'core:lesson_quiz_submit' lesson.slug %}">
         {% csrf_token %}
         <div class="quiz-grid" data-track-view="quiz_view" data-lesson-slug="{{ lesson.slug }}">

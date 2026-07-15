@@ -10,6 +10,7 @@ urlpatterns = [
     path('lessons/', views.LessonsView.as_view(), name='lessons'),
     path('lessons/<slug:slug>/', views.LessonDetailView.as_view(), name='lesson_detail'),
     path('lessons/<slug:slug>/progress/', views.LessonProgressUpdateView.as_view(), name='lesson_progress_update'),
+    path('lessons/<slug:slug>/mini-challenge/', views.LessonMiniChallengeView.as_view(), name='lesson_mini_challenge'),
     path('lessons/<slug:slug>/quiz/', views.LessonQuizSubmitView.as_view(), name='lesson_quiz_submit'),
     path('my-progress/', views.MyProgressView.as_view(), name='my_progress'),
     path('insights/', views.InsightsView.as_view(), name='insights'),

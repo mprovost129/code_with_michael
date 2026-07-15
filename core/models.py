@@ -41,6 +41,17 @@ class Lesson(models.Model):
     common_mistake = models.TextField()
     mini_challenge = models.TextField()
     expected_output = models.TextField(blank=True)
+    # Inline challenge fields — separate from the read-along starter_code above.
+    # challenge_starter_code: what the learner types into to solve the challenge.
+    # challenge_expected_output: exact string the code must print to auto-complete.
+    challenge_starter_code = models.TextField(
+        blank=True,
+        help_text='Starter code for the inline mini-challenge editor. Falls back to starter_code when blank.',
+    )
+    challenge_expected_output = models.TextField(
+        blank=True,
+        help_text='Exact output the learner must produce to auto-complete the lesson.',
+    )
     practice_challenge_slug = models.SlugField(blank=True)
     quiz = models.JSONField(default=list, blank=True)
     is_featured = models.BooleanField(default=False)

@@ -166,7 +166,9 @@ LESSONS = [
         'starter_code': 'print("Hello from Code_with_Michael!")\nprint("I am learning Python one step at a time.")',
         'try_it': 'Change the second line so it says your name and one reason you want to learn Python.',
         'common_mistake': 'Forgetting the closing quote or parenthesis causes a syntax error. If Python says a string was never closed, check the line above the error first.',
-        'mini_challenge': 'Add a third print() line that shares your favorite hobby or goal.',
+        'mini_challenge': 'Use print() three times to produce this exact output:\nLearning Python\nLine by line\nI can do this',
+        'challenge_starter_code': '# Use print() three times to produce the exact output shown in the challenge.\n# Line 1: Learning Python\n# Line 2: Line by line\n# Line 3: I can do this\n',
+        'challenge_expected_output': 'Learning Python\nLine by line\nI can do this',
         'expected_output': 'Hello from Code_with_Michael!\nI am learning Python one step at a time.',
         'practice_challenge_slug': 'warm-up-greeting',
         'quiz': [
@@ -237,7 +239,9 @@ LESSONS = [
             'A common beginner mistake is using a variable name before creating it. Python cannot print player_name if you never assigned a value to player_name first.\n\n'
             'Another mistake is choosing names that are too vague. A name like goal_score is much easier to understand than a single letter like g.'
         ),
-        'mini_challenge': 'Create three variables for a hobby, a weekly goal, and the number of practice sessions you want. Print all three values, then update one of them and print it again.',
+        'mini_challenge': 'Create a variable called sessions set to 3 and print it. Then add 2 to sessions and print it again. Expected output: 3 then 5.',
+        'challenge_starter_code': '# 1. Create a variable called sessions and set it to 3\n# 2. Print sessions\n# 3. Add 2 to sessions\n# 4. Print sessions again\n',
+        'challenge_expected_output': '3\n5',
         'expected_output': 'Michael\nFinish one Python lesson\n3\n5',
         'practice_challenge_slug': 'simple-scoreboard',
         'quiz': [
@@ -295,7 +299,9 @@ LESSONS = [
         ),
         'try_it': 'Replace the three string values with your own information.\nThen create one more f-string sentence that shares what you want to build or learn next.',
         'common_mistake': 'The most common string mistake is forgetting matching quotes.\n\nA common f-string mistake is forgetting the `f` before the opening quote. Without it, Python prints the braces instead of the variable values.',
-        'mini_challenge': 'Create variables for your name, your favorite hobby, and your current coding goal. Print one polished introduction sentence using an f-string.',
+        'mini_challenge': 'Using the two variables provided, print one f-string sentence that reads exactly: Alex wants to learn loops.',
+        'challenge_starter_code': 'name = "Alex"\ngoal = "learn loops"\n# Print one sentence using an f-string so the output reads:\n# Alex wants to learn loops.\n',
+        'challenge_expected_output': 'Alex wants to learn loops.',
         'expected_output': 'Michael\nFavorite language: Python\nMichael wants to build beginner lessons with Python.',
         'practice_challenge_slug': 'mood-check',
         'quiz': [
@@ -352,7 +358,9 @@ LESSONS = [
         ),
         'try_it': 'Change completed_lessons to a different whole number and change study_hours to a different decimal number.\nThen create one more variable called average_hours and set it to total_hours / 2.',
         'common_mistake': 'A common mistake is putting quotes around numbers. "5" looks like a number, but Python treats it as text if it has quotes.\n\nAnother mistake is expecting every calculation to stay a whole number. Division often produces a float.',
-        'mini_challenge': 'Create variables for the number of practice sessions you completed this week and the average hours per session. Print the total time you studied.',
+        'mini_challenge': 'Print sessions on the first line, then print the total hours (sessions times hours_each) on the second line. Expected output: 4 then 6.0.',
+        'challenge_starter_code': 'sessions = 4\nhours_each = 1.5\n# Print sessions on the first line.\n# Print the total hours (sessions times hours_each) on the second line.\n',
+        'challenge_expected_output': '4\n6.0',
         'expected_output': '4\n3.5\n8',
         'practice_challenge_slug': 'data-type-mix-up',
         'quiz': [
@@ -407,7 +415,9 @@ LESSONS = [
         ),
         'try_it': 'Change finished_lesson to False and run the code again.\nThen change needs_review to True and notice what changes in the output.',
         'common_mistake': 'Python booleans are written as True and False with capital letters. Writing true or false causes an error because Python looks for variable names with those spellings.',
-        'mini_challenge': 'Create a boolean called practiced_today. Use an if statement to print one encouraging message if it is True and another if it is False.',
+        'mini_challenge': 'Use if and else on practiced_today. If it is True print: Nice work today. Otherwise print: Try again tomorrow.',
+        'challenge_starter_code': 'practiced_today = True\n# Use if and else.\n# If practiced_today is True, print: Nice work today.\n# Otherwise print: Try again tomorrow.\n',
+        'challenge_expected_output': 'Nice work today.',
         'expected_output': 'Great job finishing the lesson.\nYou are ready for the next step.',
         'practice_challenge_slug': 'boolean-checkpoint',
         'quiz': [
@@ -463,7 +473,9 @@ LESSONS = [
         ),
         'try_it': 'Change score to a value above 90, then to a value below 70.\nWatch how Python chooses a different branch each time.',
         'common_mistake': 'A common mistake is writing the conditions out of order. If you check a lower threshold first, Python may never reach the later condition you intended.\n\nAnother common mistake is forgetting the colon after if, elif, or else.',
-        'mini_challenge': 'Create a variable called temperature. Use if, elif, and else to print one message for hot weather, one for mild weather, and one for cold weather.',
+        'mini_challenge': 'Use if, elif, and else on temperature. 85 or higher prints Hot, 60 to 84 prints Mild, below 60 prints Cold. Expected output: Mild.',
+        'challenge_starter_code': 'temperature = 75\n# Use if, elif, and else.\n# 85 or higher prints: Hot\n# 60 to 84 prints: Mild\n# below 60 prints: Cold\n',
+        'challenge_expected_output': 'Mild',
         'expected_output': 'Nice job. Keep practicing.',
         'practice_challenge_slug': 'conditional-coach',
         'quiz': [
@@ -525,7 +537,9 @@ LESSONS = [
         ),
         'try_it': 'Add one more topic to the list.\nThen change the dictionary values so they match your own name, goal, and practice count.',
         'common_mistake': 'A common list mistake is trying to access an index that does not exist.\n\nA common dictionary mistake is misspelling a key. If the dictionary uses "name", then "Name" or "student_name" is not the same key.',
-        'mini_challenge': 'Create a list of three coding goals and a dictionary with your name, favorite topic, and current practice streak. Print one item from the list and two values from the dictionary.',
+        'mini_challenge': 'Print the second item in goals, then the name value and the topic value from profile. Expected output: code, Sam, lists.',
+        'challenge_starter_code': 'goals = ["read", "code", "rest"]\nprofile = {"name": "Sam", "topic": "lists"}\n# Print the second item in goals.\n# Print the name value from profile.\n# Print the topic value from profile.\n',
+        'challenge_expected_output': 'code\nSam\nlists',
         'expected_output': 'variables\nMichael\nFinish the beginner path',
         'practice_challenge_slug': 'list-and-dictionary-snapshot',
         'quiz': [
@@ -580,7 +594,9 @@ LESSONS = [
         ),
         'try_it': 'Add one or two more topics to the list and run the loop again.\nThen change the sentence inside print() so it sounds more like your own voice.',
         'common_mistake': 'A missing colon after the for line or bad indentation on the next line causes many beginner loop errors. If the loop is not working, check the colon and indentation first.',
-        'mini_challenge': 'Make a collection of three goals for the week and print each one with a for loop.',
+        'mini_challenge': "Use a for loop to print each goal with the prefix 'Goal: '. Expected output: Goal: read, Goal: code, Goal: rest.",
+        'challenge_starter_code': 'goals = ["read", "code", "rest"]\n# Use a for loop to print each goal with the prefix "Goal: "\n# Example first line: Goal: read\n',
+        'challenge_expected_output': 'Goal: read\nGoal: code\nGoal: rest',
         'expected_output': 'Today I practiced: variables\nToday I practiced: strings\nToday I practiced: loops',
         'practice_challenge_slug': 'loop-through-a-list',
         'quiz': [
@@ -635,7 +651,9 @@ LESSONS = [
         ),
         'try_it': 'Change the tuple to your own three favorite topics.\nThen add repeated items to the set and notice that duplicates do not stay there.',
         'common_mistake': 'Beginners sometimes expect sets to preserve duplicates or a predictable printed order. Sets focus on uniqueness, not on keeping repeated items.',
-        'mini_challenge': 'Create a tuple of three goals for this month and a set of topics you have completed so far. Print both and explain what makes them different.',
+        'mini_challenge': 'Print how many items are in colors, then use a for loop to print each color on its own line. Expected output: 3, red, green, blue.',
+        'challenge_starter_code': 'colors = ("red", "green", "blue")\n# Print how many items are in colors.\n# Then use a for loop to print each color on its own line.\n',
+        'challenge_expected_output': '3\nred\ngreen\nblue',
         'expected_output': "('variables', 'strings', 'functions')\n{'variables', 'strings', 'loops'} (the order of items in a set can vary, so yours may not match exactly)\nFavorite topic: variables\nFavorite topic: strings\nFavorite topic: functions",
         'practice_challenge_slug': 'tuple-to-loop',
         'quiz': [
@@ -691,7 +709,9 @@ LESSONS = [
         ),
         'try_it': 'Call the function with your own name and a different topic.\nThen create a second call with another person or another topic to prove the function can be reused.',
         'common_mistake': 'One of the most common beginner mistakes is forgetting the colon after the function line or forgetting to indent the code inside the function.\n\nAnother is defining a function but never calling it, which makes it look like nothing happened.',
-        'mini_challenge': 'Write a function called celebrate_progress that accepts a name and a completed lesson count. Return one encouraging f-string sentence and print it.',
+        'mini_challenge': 'Write a function called double that takes one number and returns it times 2. Print the result of calling double(6). Expected output: 12.',
+        'challenge_starter_code': '# Write a function called double that takes one number and returns it times 2.\n# Then print the result of calling double(6).\n',
+        'challenge_expected_output': '12',
         'expected_output': 'Michael is practicing functions today.',
         'practice_challenge_slug': 'function-practice',
         'quiz': [
@@ -749,7 +769,9 @@ LESSONS = [
         ),
         'try_it': 'Change price_text to a real number in quotes, like "12", and run it again to see the try block succeed instead of the except block running.',
         'common_mistake': 'A bare except: with no error type catches every possible problem, including ones you did not expect, which can hide real bugs. Always name the specific error you are expecting, like except ValueError:.',
-        'mini_challenge': 'Write a try/except block that divides 10 by a variable called divisor. Set divisor to 0 so it raises a ZeroDivisionError, then catch it and print a friendly message instead of letting the program crash.',
+        'mini_challenge': 'Use try and except to divide 10 by divisor (set to 0). Catch ZeroDivisionError and print: Cannot divide by zero.',
+        'challenge_starter_code': 'divisor = 0\n# Use try and except.\n# Try to divide 10 by divisor and print the result.\n# If a ZeroDivisionError happens, print: Cannot divide by zero.\n',
+        'challenge_expected_output': 'Cannot divide by zero.',
         'expected_output': "That doesn't look like a valid number.",
         'practice_challenge_slug': 'safe-number-check',
         'quiz': [
@@ -808,7 +830,9 @@ LESSONS = [
         ),
         'try_it': 'Add a third file.write() line with another note, then run it again to see all three lines printed back.',
         'common_mistake': 'Forgetting the mode is a common mistake. Opening a file with "w" erases its previous contents before writing, so if you meant to add to a file instead of replacing it, use "a" for append instead.',
-        'mini_challenge': 'Write your name and one Python goal to a file called goals.txt using two file.write() calls, then open the same file again to read and print its contents.',
+        'mini_challenge': 'Write two lines to goals.txt (My Python goals, then Practice daily), then open it again, read it, and print the contents.',
+        'challenge_starter_code': '# Write two lines to goals.txt, each ending in a newline:\n#   My Python goals\n#   Practice daily\n# Then open goals.txt again, read it, and print the contents.\n',
+        'challenge_expected_output': 'My Python goals\nPractice daily',
         'expected_output': 'Practiced Python today.\nLearned about files.\n',
         'practice_challenge_slug': 'write-and-read-a-file',
         'quiz': [
@@ -864,7 +888,9 @@ LESSONS = [
         ),
         'try_it': 'Change the seed number and run it again to get a different lucky number.\nThen remove the random.seed(7) line entirely and run it a few times to see genuinely random results.',
         'common_mistake': 'Forgetting to write import random at the top is a common mistake; without it, Python has no idea what random refers to and raises a NameError. Another is calling randint() directly instead of random.randint(), since the function belongs to the module.',
-        'mini_challenge': 'Import the random module and use random.choice() on a list of three activities to print one activity chosen at random.',
+        'mini_challenge': "Import random, set random.seed(1) so it is repeatable, then use random.choice() on ['walk', 'read', 'code'] and print the choice. Expected output: walk.",
+        'challenge_starter_code': '# Import the random module.\n# Set random.seed(1) so the result is repeatable.\n# Use random.choice() on ["walk", "read", "code"] and print the choice.\n',
+        'challenge_expected_output': 'walk',
         'expected_output': 'Your lucky number is 42.',
         'practice_challenge_slug': 'random-choice-picker',
         'quiz': [
@@ -925,7 +951,9 @@ LESSONS = [
         ),
         'try_it': 'Create a second Student with your own name and favorite topic, then call introduce() on it too.\nNotice the two students do not affect each other.',
         'common_mistake': 'Forgetting self as the first parameter in __init__ and every method is one of the most common class mistakes; without it, Python has no way to attach data to that specific instance. Another is forgetting to actually create an instance, like learner = Student(...), and trying to call introduce() on the class itself.',
-        'mini_challenge': 'Add a third attribute to Student called streak_days. Update __init__ to accept it and print it inside introduce().',
+        'mini_challenge': 'Complete the Student class so it stores name and streak_days, and add a method show_streak() that prints: Sam has a 5 day streak.',
+        'challenge_starter_code': '# Complete the Student class so show_streak() prints: Sam has a 5 day streak.\nclass Student:\n    def __init__(self, name, streak_days):\n        # store name and streak_days on self\n        pass\n\n    def show_streak(self):\n        # print the streak sentence using an f-string\n        pass\n\nlearner = Student("Sam", 5)\nlearner.show_streak()\n',
+        'challenge_expected_output': 'Sam has a 5 day streak.',
         'expected_output': "Hi, I'm Michael and I'm learning about functions.",
         'practice_challenge_slug': 'build-a-pet-class',
         'quiz': [
